@@ -1,0 +1,6 @@
+{
+  "name": "DuoFinanzas - Finanzas Personales y en Pareja",
+  "description": "Gestión financiera individual y en pareja con presupuestos, cálculo de balances compartidos e insights financieros inteligentes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

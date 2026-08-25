@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    // Couples
+    match /couples/{coupleId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Accounts
+    match /accounts/{accountId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Transactions
+    match /transactions/{transactionId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Budgets
+    match /budgets/{budgetId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

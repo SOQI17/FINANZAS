@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "users": {
+      "fields": {
+        "uid": "string",
+        "email": "string",
+        "displayName": "string",
+        "partnerId": "string | null",
+        "coupleId": "string | null",
+        "inviteCode": "string",
+        "currency": "string",
+        "createdAt": "timestamp"
+      }
+    },
+    "couples": {
+      "fields": {
+        "coupleId": "string",
+        "user1Id": "string",
+        "user2Id": "string | null",
+        "status": "string",
+        "createdAt": "timestamp"
+      }
+    },
+    "accounts": {
+      "fields": {
+        "accountId": "string",
+        "ownerId": "string",
+        "ownerType": "string",
+        "name": "string",
+        "type": "string",
+        "balance": "number",
+        "currency": "string",
+        "createdAt": "timestamp"
+      }
+    },
+    "transactions": {
+      "fields": {
+        "transactionId": "string",
+        "userId": "string",
+        "coupleId": "string | null",
+        "scope": "string",
+        "type": "string",
+        "amount": "number",
+        "category": "string",
+        "date": "string",
+        "description": "string",
+        "paidBy": "string",
+        "splitMethod": "string",
+        "splitRatioUser1": "number | null",
+        "splitRatioUser2": "number | null",
+        "accountId": "string | null",
+        "createdAt": "timestamp"
+      }
+    },
+    "budgets": {
+      "fields": {
+        "budgetId": "string",
+        "targetId": "string",
+        "targetType": "string",
+        "category": "string",
+        "limitAmount": "number",
+        "period": "string",
+        "createdAt": "timestamp"
+      }
+    }
+  }
+}
