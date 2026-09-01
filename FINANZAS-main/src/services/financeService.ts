@@ -169,8 +169,8 @@ export const financeService = {
         const txs: Transaction[] = [];
         snapshot.forEach(docSnap => {
           const t = docSnap.data() as Transaction;
-          // Filter according to user/couple
-          if (t.userId === userId || (coupleId && t.coupleId === coupleId)) {
+          // Filter according to user, couple, or shared scope
+          if (t.userId === userId || (coupleId && t.coupleId === coupleId) || t.scope === 'shared') {
             txs.push(t);
           }
         });
