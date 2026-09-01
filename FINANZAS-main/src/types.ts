@@ -1,6 +1,6 @@
 export type FinancialScope = 'individual' | 'shared';
 export type TransactionType = 'income' | 'expense';
-export type SplitMethod = '50_50' | 'full' | 'custom';
+export type SplitMethod = '50_50' | '60_40' | '70_30' | '80_20' | 'full' | 'custom' | 'custom_percentage';
 export type AccountType = 'checking' | 'savings' | 'credit' | 'cash' | 'investment';
 export type CoupleStatus = 'pending' | 'active';
 

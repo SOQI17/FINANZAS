@@ -146,7 +146,10 @@ export function calculateSharedDebtBalance(
       let u1Ratio = 0.5;
       let u2Ratio = 0.5;
 
-      if (t.splitMethod === 'full') {
+      if (t.splitRatioUser1 !== undefined && t.splitRatioUser2 !== undefined) {
+        u1Ratio = t.splitRatioUser1;
+        u2Ratio = t.splitRatioUser2;
+      } else if (t.splitMethod === 'full') {
         // paidBy pays, assigned 100% to the other person
         if (paidBy === user1Id) {
           u1Ratio = 0;
@@ -155,7 +158,16 @@ export function calculateSharedDebtBalance(
           u1Ratio = 1.0;
           u2Ratio = 0;
         }
-      } else if (t.splitMethod === 'custom') {
+      } else if (t.splitMethod === '60_40') {
+        u1Ratio = (paidBy === user1Id) ? 0.6 : 0.4;
+        u2Ratio = (paidBy === user1Id) ? 0.4 : 0.6;
+      } else if (t.splitMethod === '70_30') {
+        u1Ratio = (paidBy === user1Id) ? 0.7 : 0.3;
+        u2Ratio = (paidBy === user1Id) ? 0.3 : 0.7;
+      } else if (t.splitMethod === '80_20') {
+        u1Ratio = (paidBy === user1Id) ? 0.8 : 0.2;
+        u2Ratio = (paidBy === user1Id) ? 0.2 : 0.8;
+      } else if (t.splitMethod === 'custom' || t.splitMethod === 'custom_percentage') {
         u1Ratio = t.splitRatioUser1 ?? 0.5;
         u2Ratio = t.splitRatioUser2 ?? 0.5;
       }

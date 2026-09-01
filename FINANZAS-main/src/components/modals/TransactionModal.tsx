@@ -35,12 +35,41 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
   const [accountId, setAccountId] = useState<string>(accounts[0]?.accountId || '');
   const [paidBy, setPaidBy] = useState<string>(user?.uid || '');
   const [splitMethod, setSplitMethod] = useState<SplitMethod>('50_50');
+  const [customUserPercent, setCustomUserPercent] = useState<number>(50);
+
+  const parsedAmount = parseFloat(amount) || 0;
+  const userPercent = splitMethod === '50_50'
+    ? 50
+    : splitMethod === '60_40'
+    ? 60
+    : splitMethod === '70_30'
+    ? 70
+    : splitMethod === '80_20'
+    ? 80
+    : splitMethod === 'full'
+    ? 0
+    : customUserPercent;
+  const partnerPercent = 100 - userPercent;
+
+  const userShareAmount = (parsedAmount * (userPercent / 100));
+  const partnerShareAmount = (parsedAmount * (partnerPercent / 100));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || parseFloat(amount) <= 0 || !description.trim()) {
       alert('Por favor ingresa un monto y descripción válidos.');
       return;
+    }
+
+    const uRatio = userPercent / 100;
+    const pRatio = partnerPercent / 100;
+
+    let splitRatioUser1 = uRatio;
+    let splitRatioUser2 = pRatio;
+
+    if (couple && user?.uid === couple.user2Id) {
+      splitRatioUser1 = pRatio;
+      splitRatioUser2 = uRatio;
     }
 
     await addTransaction({
@@ -55,6 +84,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
       description: description.trim(),
       paidBy: scope === 'shared' ? paidBy : (user?.uid || 'user_1'),
       splitMethod,
+      splitRatioUser1,
+      splitRatioUser2,
       accountId: accountId || null,
     });
 
@@ -211,16 +242,16 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
 
           {/* Shared Split Options */}
           {scope === 'shared' && (
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+            <div className="p-3.5 bg-slate-950 rounded-2xl border border-pink-500/20 space-y-3">
               <div>
                 <label className="text-xs font-semibold text-pink-400 mb-1 block">¿Quién pagó el gasto?</label>
                 <select
                   value={paidBy}
                   onChange={(e) => setPaidBy(e.target.value)}
-                  className="w-full bg-slate-900 text-white text-xs px-3 py-2 rounded-lg border border-slate-800 focus:border-pink-500 outline-none"
+                  className="w-full bg-slate-900 text-white text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-800 focus:border-pink-500 outline-none"
                 >
-                  <option value={user?.uid || 'user_1'}>{user?.displayName || 'Tú'}</option>
-                  {partner && <option value={partner.uid}>{partner.displayName}</option>}
+                  <option value={user?.uid || 'user_1'}>{user?.displayName || 'Tú'} (Pagó el total)</option>
+                  {partner && <option value={partner.uid}>{partner.displayName} (Pagó el total)</option>}
                 </select>
               </div>
 
@@ -229,12 +260,62 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
                 <select
                   value={splitMethod}
                   onChange={(e: any) => setSplitMethod(e.target.value)}
-                  className="w-full bg-slate-900 text-white text-xs px-3 py-2 rounded-lg border border-slate-800 focus:border-pink-500 outline-none"
+                  className="w-full bg-slate-900 text-white text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-800 focus:border-pink-500 outline-none"
                 >
                   <option value="50_50">Dividir 50% / 50% (Partes iguales)</option>
+                  <option value="60_40">Dividir 60% Tú / 40% Pareja</option>
+                  <option value="70_30">Dividir 70% Tú / 30% Pareja</option>
+                  <option value="80_20">Dividir 80% Tú / 20% Pareja</option>
+                  <option value="custom_percentage">⚙️ Porcentaje Personalizado (%)</option>
                   <option value="full">Asignar 100% a la Pareja (Deuda Total)</option>
                 </select>
               </div>
+
+              {/* Custom Percentage Input & Range Slider */}
+              {splitMethod === 'custom_percentage' && (
+                <div className="p-3 bg-slate-900 rounded-xl border border-pink-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-300 font-semibold">Tu Porcentaje de Pago (%):</span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={customUserPercent}
+                        onChange={(e) => setCustomUserPercent(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                        className="w-16 bg-slate-950 text-emerald-400 font-extrabold text-sm text-center py-1 rounded-lg border border-slate-800 focus:border-pink-500 outline-none"
+                      />
+                      <span className="text-xs text-slate-400 font-bold">%</span>
+                    </div>
+                  </div>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={customUserPercent}
+                    onChange={(e) => setCustomUserPercent(parseInt(e.target.value, 10))}
+                    className="w-full accent-pink-500 cursor-pointer"
+                  />
+                </div>
+              )}
+
+              {/* Live Dollar Split Breakdown Card */}
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800/80 space-y-1 text-xs">
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Desglose del Gasto (${parsedAmount.toFixed(2)}):
+                </div>
+                <div className="flex items-center justify-between text-slate-200">
+                  <span className="font-medium">👤 Tu cuota ({userPercent}%):</span>
+                  <span className="font-extrabold text-emerald-400">${userShareAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-200">
+                  <span className="font-medium">❤️ Cuota de {partner ? partner.displayName : 'Pareja'} ({partnerPercent}%):</span>
+                  <span className="font-extrabold text-pink-400">${partnerShareAmount.toFixed(2)}</span>
+                </div>
+              </div>
+
             </div>
           )}
 
