@@ -12,7 +12,7 @@ import {
   orderBy,
   onSnapshot
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { UserProfile, Couple, BankAccount, Transaction, Budget } from '../types';
 import { DEMO_USER_1, DEMO_USER_2, DEMO_COUPLE, DEMO_ACCOUNTS, DEMO_TRANSACTIONS, DEMO_BUDGETS } from '../data/demoData';
 
@@ -29,6 +29,11 @@ export function generateInviteCode(): string {
 export const financeService = {
   // --- USERS ---
   async getUserProfile(uid: string): Promise<UserProfile | null> {
+    if (!auth.currentUser) {
+      if (uid === DEMO_USER_1.uid) return DEMO_USER_1;
+      if (uid === DEMO_USER_2.uid) return DEMO_USER_2;
+      return null;
+    }
     try {
       const docRef = doc(db, 'users', uid);
       const snap = await getDoc(docRef);
@@ -36,7 +41,7 @@ export const financeService = {
         return snap.data() as UserProfile;
       }
     } catch (e) {
-      console.warn('Firestore getUserProfile error, fallback to local', e);
+      // Silently fall back if ad blocker or permission blocks request
     }
     if (uid === DEMO_USER_1.uid) return DEMO_USER_1;
     if (uid === DEMO_USER_2.uid) return DEMO_USER_2;
@@ -44,14 +49,20 @@ export const financeService = {
   },
 
   async createUserProfile(profile: UserProfile): Promise<void> {
+    if (!auth.currentUser) return;
     try {
       await setDoc(doc(db, 'users', profile.uid), profile, { merge: true });
     } catch (e) {
-      console.error('Error creating user profile in Firestore', e);
+      // Silently fall back if ad blocker or permission blocks request
     }
   },
 
   async findUserByInviteCode(inviteCode: string): Promise<UserProfile | null> {
+    if (!auth.currentUser) {
+      if (inviteCode.trim().toUpperCase() === DEMO_USER_2.inviteCode) return DEMO_USER_2;
+      if (inviteCode.trim().toUpperCase() === DEMO_USER_1.inviteCode) return DEMO_USER_1;
+      return null;
+    }
     try {
       const q = query(collection(db, 'users'), where('inviteCode', '==', inviteCode.trim().toUpperCase()));
       const snap = await getDocs(q);
@@ -59,9 +70,8 @@ export const financeService = {
         return snap.docs[0].data() as UserProfile;
       }
     } catch (e) {
-      console.warn('Error looking up partner code', e);
+      // Silently fall back
     }
-    // Demo fallback
     if (inviteCode.trim().toUpperCase() === DEMO_USER_2.inviteCode) return DEMO_USER_2;
     if (inviteCode.trim().toUpperCase() === DEMO_USER_1.inviteCode) return DEMO_USER_1;
     return null;
@@ -80,26 +90,32 @@ export const financeService = {
       createdAt: new Date().toISOString(),
     };
 
-    try {
-      await setDoc(doc(db, 'couples', coupleId), couple);
-      // Update both user profiles
-      await updateDoc(doc(db, 'users', user1.uid), { partnerId: partner.uid, coupleId });
-      await updateDoc(doc(db, 'users', partner.uid), { partnerId: user1.uid, coupleId });
-    } catch (e) {
-      console.error('Error linking couple in Firestore', e);
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'couples', coupleId), couple);
+        // Update both user profiles
+        await updateDoc(doc(db, 'users', user1.uid), { partnerId: partner.uid, coupleId });
+        await updateDoc(doc(db, 'users', partner.uid), { partnerId: user1.uid, coupleId });
+      } catch (e) {
+        // Fall back gracefully
+      }
     }
 
     return couple;
   },
 
   async getCouple(coupleId: string): Promise<Couple | null> {
+    if (!auth.currentUser) {
+      if (coupleId === DEMO_COUPLE.coupleId) return DEMO_COUPLE;
+      return null;
+    }
     try {
       const snap = await getDoc(doc(db, 'couples', coupleId));
       if (snap.exists()) {
         return snap.data() as Couple;
       }
     } catch (e) {
-      console.warn('Error getting couple', e);
+      // Fall back
     }
     if (coupleId === DEMO_COUPLE.coupleId) return DEMO_COUPLE;
     return null;
@@ -107,6 +123,7 @@ export const financeService = {
 
   // --- ACCOUNTS ---
   async getAccounts(ownerId: string): Promise<BankAccount[]> {
+    if (!auth.currentUser) return [];
     try {
       const q = query(collection(db, 'accounts'), where('ownerId', '==', ownerId));
       const snap = await getDocs(q);
@@ -114,24 +131,25 @@ export const financeService = {
       snap.forEach(d => accounts.push(d.data() as BankAccount));
       return accounts;
     } catch (e) {
-      console.warn('Error getting accounts from Firestore', e);
       return [];
     }
   },
 
   async saveAccount(account: BankAccount): Promise<void> {
+    if (!auth.currentUser) return;
     try {
       await setDoc(doc(db, 'accounts', account.accountId), account, { merge: true });
     } catch (e) {
-      console.error('Error saving account to Firestore', e);
+      // Fall back
     }
   },
 
   async deleteAccount(accountId: string): Promise<void> {
+    if (!auth.currentUser) return;
     try {
       await deleteDoc(doc(db, 'accounts', accountId));
     } catch (e) {
-      console.error('Error deleting account from Firestore', e);
+      // Fall back
     }
   },
 
@@ -141,6 +159,10 @@ export const financeService = {
     coupleId: string | null,
     callback: (txs: Transaction[]) => void
   ) {
+    if (!auth.currentUser) {
+      callback([]);
+      return () => {};
+    }
     try {
       const q = query(collection(db, 'transactions'));
       return onSnapshot(q, (snapshot) => {
@@ -155,17 +177,16 @@ export const financeService = {
         txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         callback(txs);
       }, (error) => {
-        console.warn('Firestore subscription error', error);
         callback([]);
       });
     } catch (e) {
-      console.warn('Failed to subscribe to transactions', e);
       callback([]);
       return () => {};
     }
   },
 
   async addTransaction(tx: Transaction): Promise<void> {
+    if (!auth.currentUser) return;
     try {
       await setDoc(doc(db, 'transactions', tx.transactionId), tx);
       // Also adjust account balance if accountId is set
@@ -179,20 +200,22 @@ export const financeService = {
         }
       }
     } catch (e) {
-      console.error('Error adding transaction to Firestore', e);
+      // Fall back
     }
   },
 
   async deleteTransaction(transactionId: string): Promise<void> {
+    if (!auth.currentUser) return;
     try {
       await deleteDoc(doc(db, 'transactions', transactionId));
     } catch (e) {
-      console.error('Error deleting transaction from Firestore', e);
+      // Fall back
     }
   },
 
   // --- BUDGETS ---
   async getBudgets(targetId: string): Promise<Budget[]> {
+    if (!auth.currentUser) return [];
     try {
       const q = query(collection(db, 'budgets'), where('targetId', '==', targetId));
       const snap = await getDocs(q);
@@ -200,29 +223,31 @@ export const financeService = {
       snap.forEach(d => budgets.push(d.data() as Budget));
       return budgets;
     } catch (e) {
-      console.warn('Error getting budgets from Firestore', e);
       return [];
     }
   },
 
   async saveBudget(budget: Budget): Promise<void> {
+    if (!auth.currentUser) return;
     try {
       await setDoc(doc(db, 'budgets', budget.budgetId), budget, { merge: true });
     } catch (e) {
-      console.error('Error saving budget to Firestore', e);
+      // Fall back
     }
   },
 
   async deleteBudget(budgetId: string): Promise<void> {
+    if (!auth.currentUser) return;
     try {
       await deleteDoc(doc(db, 'budgets', budgetId));
     } catch (e) {
-      console.error('Error deleting budget from Firestore', e);
+      // Fall back
     }
   },
 
   // --- WIPE / CLEAR ALL FIRESTORE DATA ---
   async clearDatabase(): Promise<void> {
+    if (!auth.currentUser) return;
     try {
       const collectionsToWipe = ['transactions', 'accounts', 'budgets'];
       for (const colName of collectionsToWipe) {
@@ -231,14 +256,14 @@ export const financeService = {
           await deleteDoc(doc(db, colName, d.id));
         }
       }
-      console.log('Database cleared completely (started from 0)!');
     } catch (e) {
-      console.error('Error clearing Firestore database:', e);
+      // Fall back
     }
   },
 
   // --- SEED DEMO DATA TO FIRESTORE ---
   async seedDemoData(user1: UserProfile, partner?: UserProfile | null): Promise<void> {
+    if (!auth.currentUser) return;
     try {
       // Users
       await setDoc(doc(db, 'users', user1.uid), user1, { merge: true });
@@ -262,10 +287,8 @@ export const financeService = {
       for (const t of DEMO_TRANSACTIONS) {
         await setDoc(doc(db, 'transactions', t.transactionId), t, { merge: true });
       }
-
-      console.log('Demo data successfully seeded to Firestore!');
     } catch (e) {
-      console.error('Error seeding demo data to Firestore', e);
+      // Fall back
     }
   }
 };
