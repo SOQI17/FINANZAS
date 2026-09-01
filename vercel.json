@@ -1,0 +1,8 @@
+{
+  "buildCommand": "cd FINANZAS-main && npm run build",
+  "outputDirectory": "FINANZAS-main/dist",
+  "installCommand": "cd FINANZAS-main && npm install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

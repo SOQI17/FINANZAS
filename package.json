@@ -1,0 +1,9 @@
+{
+  "name": "finanzas-app",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd FINANZAS-main && npm install && npm run build",
+    "dev": "cd FINANZAS-main && npm run dev"
+  }
+}
