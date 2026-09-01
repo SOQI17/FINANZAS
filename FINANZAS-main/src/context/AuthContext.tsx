@@ -3,6 +3,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
@@ -23,6 +24,7 @@ interface AuthContextType {
   signUpWithEmail: (email: string, pass: string, displayName: string) => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOutUser: () => Promise<void>;
   linkPartnerWithCode: (code: string) => Promise<{ success: boolean; message: string }>;
   seedFirestore: () => Promise<void>;
@@ -31,11 +33,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(DEMO_USER_1);
-  const [partner, setPartner] = useState<UserProfile | null>(DEMO_USER_2);
-  const [couple, setCouple] = useState<Couple | null>(DEMO_COUPLE);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(true);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [partner, setPartner] = useState<UserProfile | null>(null);
+  const [couple, setCouple] = useState<Couple | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
 
   // Load partner and couple details if user has coupleId/partnerId
   const refreshRelationship = async (currentUser: UserProfile) => {
@@ -179,14 +181,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const resetPassword = async (email: string) => {
+    if (!email.trim()) {
+      throw new Error('Por favor ingresa tu correo electrónico.');
+    }
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (e: any) {
+      if (e.code === 'auth/user-not-found') {
+        throw new Error('No existe una cuenta registrada con este correo electrónico.');
+      } else if (e.code === 'auth/invalid-email') {
+        throw new Error('El correo electrónico ingresado no es válido.');
+      }
+      throw new Error(e.message || 'Error al enviar el correo de recuperación.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOutUser = async () => {
     try {
       await signOut(auth);
     } catch (e) {
       console.warn('Signout error', e);
     }
-    // Default to demo user
-    signInDemoUser(1);
+    setUser(null);
+    setPartner(null);
+    setCouple(null);
+    setIsDemoMode(false);
   };
 
   const linkPartnerWithCode = async (code: string): Promise<{ success: boolean; message: string }> => {
@@ -240,6 +263,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUpWithEmail,
         signInWithEmail,
         signInWithGoogle,
+        resetPassword,
         signOutUser,
         linkPartnerWithCode,
         seedFirestore,
