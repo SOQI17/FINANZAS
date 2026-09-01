@@ -173,7 +173,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (e.code === 'auth/popup-closed-by-user') {
         throw new Error('Inicio de sesión cancelado.');
       } else if (e.code === 'auth/unauthorized-domain') {
-        throw new Error('El dominio actual no está autorizado en la consola de Firebase. Por favor añade localhost en Firebase Auth.');
+        const currentDomain = window.location.hostname;
+        throw new Error(`Dominio no autorizado (${currentDomain}). Por favor añade "${currentDomain}" en Firebase Console -> Authentication -> Settings -> Authorized Domains.`);
       }
       throw new Error(e.message || 'Error al iniciar sesión con Google.');
     } finally {
