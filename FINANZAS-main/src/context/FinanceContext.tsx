@@ -12,6 +12,7 @@ import { useAuth } from './AuthContext';
 import { financeService } from '../services/financeService';
 import { generateFinancialInsights, calculateSharedDebtBalance } from '../services/financialInsights';
 import { DEMO_ACCOUNTS, DEMO_BUDGETS, DEMO_TRANSACTIONS, DEMO_USER_1, DEMO_USER_2, DEMO_COUPLE } from '../data/demoData';
+import { getCurrentPeriod } from '../utils/dateUtils';
 
 interface FinanceContextType {
   activeScope: FinancialScope;
@@ -40,7 +41,7 @@ const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, partner, couple, isDemoMode } = useAuth();
   const [activeScope, setActiveScope] = useState<FinancialScope>('individual');
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('2026-07');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(getCurrentPeriod());
 
   const [rawTransactions, setRawTransactions] = useState<Transaction[]>(DEMO_TRANSACTIONS);
   const [rawAccounts, setRawAccounts] = useState<BankAccount[]>(DEMO_ACCOUNTS);

@@ -18,6 +18,7 @@ import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { TransactionModal } from './modals/TransactionModal';
 import { SettleDebtModal } from './modals/SettleDebtModal';
+import { getAvailablePeriods, formatPeriodLabel } from '../utils/dateUtils';
 
 const CATEGORY_COLORS: Record<string, string> = {
   'Alimentación y Súper': '#10b981',
@@ -41,6 +42,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
 
   const [showAddTxModal, setShowAddTxModal] = useState(false);
   const [showSettleModal, setShowSettleModal] = useState(false);
+
+  const availablePeriods = getAvailablePeriods();
 
   // Prepare Pie Chart Data
   const pieData = Object.entries(metrics.expenseByCategory).map(([category, amount]) => ({
@@ -81,16 +84,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
           <select
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="bg-slate-50 text-slate-800 text-xs sm:text-sm font-semibold border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-500"
+            className="bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs sm:text-sm font-bold border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 cursor-pointer shadow-xs transition"
           >
-            <option value="2026-07">Julio 2026</option>
-            <option value="2026-06">Junio 2026</option>
-            <option value="2026-05">Mayo 2026</option>
+            {availablePeriods.map(p => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
           </select>
 
           <button
             onClick={() => setShowAddTxModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-xs"
+            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-xs shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Nuevo Movimiento</span>
@@ -167,7 +172,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
           </div>
           <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
             <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600" />
-            Período {selectedPeriod}
+            <span>{formatPeriodLabel(selectedPeriod)}</span>
           </p>
         </div>
 
@@ -182,7 +187,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
           </div>
           <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
             <ArrowDownRight className="w-3.5 h-3.5 text-rose-600" />
-            Período {selectedPeriod}
+            <span>{formatPeriodLabel(selectedPeriod)}</span>
           </p>
         </div>
 
@@ -257,7 +262,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <h3 className="font-bold text-base text-slate-900 mb-4 flex items-center justify-between">
             <span>Desglose de Gastos por Categoría</span>
-            <span className="text-xs font-medium text-slate-500">{selectedPeriod}</span>
+            <span className="text-xs font-semibold text-slate-500">{formatPeriodLabel(selectedPeriod)}</span>
           </h3>
 
           {pieData.length > 0 ? (

@@ -3,6 +3,7 @@ import { X, ReceiptText, DollarSign, Calendar, Tag, Wallet, Users, User } from '
 import { useFinance } from '../../context/FinanceContext';
 import { useAuth } from '../../context/AuthContext';
 import { FinancialScope, TransactionType, SplitMethod } from '../../types';
+import { getCurrentDateISO, getYesterdayISO } from '../../utils/dateUtils';
 
 interface TransactionModalProps {
   onClose: () => void;
@@ -23,14 +24,14 @@ const CATEGORIES = [
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) => {
   const { user, partner, couple } = useAuth();
-  const { addTransaction, accounts, activeScope } = useFinance();
+  const { addTransaction, accounts, activeScope, setSelectedPeriod } = useFinance();
 
   const [type, setType] = useState<TransactionType>('expense');
   const [scope, setScope] = useState<FinancialScope>(activeScope);
   const [amount, setAmount] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [category, setCategory] = useState<string>('Alimentación y Súper');
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(getCurrentDateISO());
   const [accountId, setAccountId] = useState<string>(accounts[0]?.accountId || '');
   const [paidBy, setPaidBy] = useState<string>(user?.uid || '');
   const [splitMethod, setSplitMethod] = useState<SplitMethod>('50_50');
@@ -56,6 +57,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
       splitMethod,
       accountId: accountId || null,
     });
+
+    // Auto sync period view to match the movement's month
+    if (date) {
+      setSelectedPeriod(date.substring(0, 7));
+    }
 
     onClose();
   };
@@ -175,7 +181,25 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-400 mb-1 block">Fecha:</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-400 block">Fecha:</label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setDate(getCurrentDateISO())}
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 border border-indigo-500/30 transition"
+                  >
+                    Hoy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDate(getYesterdayISO())}
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition"
+                  >
+                    Ayer
+                  </button>
+                </div>
+              </div>
               <input
                 type="date"
                 value={date}
