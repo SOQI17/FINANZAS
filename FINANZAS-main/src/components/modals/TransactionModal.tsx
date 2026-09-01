@@ -242,77 +242,157 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
 
           {/* Shared Split Options */}
           {scope === 'shared' && (
-            <div className="p-3.5 bg-slate-950 rounded-2xl border border-pink-500/20 space-y-3">
+            <div className="p-4 bg-slate-950 rounded-2xl border border-pink-500/30 space-y-4 shadow-lg shadow-pink-950/20">
+              
+              {/* Who paid */}
               <div>
-                <label className="text-xs font-semibold text-pink-400 mb-1 block">¿Quién pagó el gasto?</label>
-                <select
-                  value={paidBy}
-                  onChange={(e) => setPaidBy(e.target.value)}
-                  className="w-full bg-slate-900 text-white text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-800 focus:border-pink-500 outline-none"
-                >
-                  <option value={user?.uid || 'user_1'}>{user?.displayName || 'Tú'} (Pagó el total)</option>
-                  {partner && <option value={partner.uid}>{partner.displayName} (Pagó el total)</option>}
-                </select>
+                <label className="text-xs font-bold uppercase tracking-wider text-pink-400 mb-1.5 block">
+                  ¿Quién pagó el total del gasto?
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaidBy(user?.uid || 'user_1')}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 ${
+                      paidBy === (user?.uid || 'user_1')
+                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-sm'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{user?.displayName || 'Tú'} (Pagó todo)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaidBy(partner?.uid || 'partner_1')}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 ${
+                      paidBy === (partner?.uid || 'partner_1')
+                        ? 'bg-pink-500/20 border-pink-500 text-pink-300 shadow-sm'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5 text-pink-400" />
+                    <span>{partner?.displayName || 'Pareja'} (Pagó todo)</span>
+                  </button>
+                </div>
               </div>
 
+              {/* Division Method Visual Selector */}
               <div>
-                <label className="text-xs font-semibold text-pink-400 mb-1 block">Método de División:</label>
-                <select
-                  value={splitMethod}
-                  onChange={(e: any) => setSplitMethod(e.target.value)}
-                  className="w-full bg-slate-900 text-white text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-800 focus:border-pink-500 outline-none"
-                >
-                  <option value="50_50">Dividir 50% / 50% (Partes iguales)</option>
-                  <option value="60_40">Dividir 60% Tú / 40% Pareja</option>
-                  <option value="70_30">Dividir 70% Tú / 30% Pareja</option>
-                  <option value="80_20">Dividir 80% Tú / 20% Pareja</option>
-                  <option value="custom_percentage">⚙️ Porcentaje Personalizado (%)</option>
-                  <option value="full">Asignar 100% a la Pareja (Deuda Total)</option>
-                </select>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-pink-400 block">
+                    Método de División del Gasto:
+                  </label>
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    {userPercent}% Tú • {partnerPercent}% Pareja
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { id: '50_50', label: '50% / 50%', sub: 'Partes Iguales', icon: '⚖️' },
+                    { id: '60_40', label: '60% / 40%', sub: '60% Tú - 40% Pareja', icon: '📊' },
+                    { id: '70_30', label: '70% / 30%', sub: '70% Tú - 30% Pareja', icon: '📊' },
+                    { id: '80_20', label: '80% / 20%', sub: '80% Tú - 20% Pareja', icon: '📊' },
+                    { id: 'custom_percentage', label: 'Personalizado', sub: 'Escribir % Exacto', icon: '🎚️' },
+                    { id: 'full', label: '100% Pareja', sub: 'Deuda Total', icon: '🤝' },
+                  ].map(opt => {
+                    const isSelected = splitMethod === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setSplitMethod(opt.id as SplitMethod)}
+                        className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between active:scale-95 ${
+                          isSelected
+                            ? 'bg-pink-500/20 border-pink-500 text-white shadow-md shadow-pink-950/40 ring-1 ring-pink-500/50'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs font-bold">
+                          <span>{opt.icon}</span>
+                          <span className={isSelected ? 'text-pink-300 font-extrabold' : ''}>{opt.label}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 mt-1 truncate">{opt.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Custom Percentage Input & Range Slider */}
+              {/* Interactive Percentage Slider & Bar */}
               {splitMethod === 'custom_percentage' && (
-                <div className="p-3 bg-slate-900 rounded-xl border border-pink-500/30 space-y-2">
+                <div className="p-3.5 bg-slate-900/90 rounded-2xl border border-pink-500/40 space-y-3 shadow-inner">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-300 font-semibold">Tu Porcentaje de Pago (%):</span>
-                    <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <span>🎚️ Configurar Porcentaje Personalizado:</span>
+                    </span>
+                    <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
                       <input
                         type="number"
                         min="0"
                         max="100"
                         value={customUserPercent}
                         onChange={(e) => setCustomUserPercent(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
-                        className="w-16 bg-slate-950 text-emerald-400 font-extrabold text-sm text-center py-1 rounded-lg border border-slate-800 focus:border-pink-500 outline-none"
+                        className="w-12 bg-transparent text-emerald-400 font-black text-sm text-center outline-none"
                       />
-                      <span className="text-xs text-slate-400 font-bold">%</span>
+                      <span className="text-xs text-slate-400 font-bold">% Tú</span>
                     </div>
                   </div>
 
+                  {/* Dual Progress Visualizer Bar */}
+                  <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 flex">
+                    <div
+                      className="bg-emerald-500 h-full transition-all duration-300"
+                      style={{ width: `${userPercent}%` }}
+                      title={`Tú: ${userPercent}%`}
+                    />
+                    <div
+                      className="bg-pink-500 h-full transition-all duration-300"
+                      style={{ width: `${partnerPercent}%` }}
+                      title={`Pareja: ${partnerPercent}%`}
+                    />
+                  </div>
+
+                  {/* Slider */}
                   <input
                     type="range"
                     min="0"
                     max="100"
-                    step="5"
+                    step="1"
                     value={customUserPercent}
                     onChange={(e) => setCustomUserPercent(parseInt(e.target.value, 10))}
-                    className="w-full accent-pink-500 cursor-pointer"
+                    className="w-full accent-pink-500 cursor-pointer h-2 bg-slate-950 rounded-lg appearance-none"
                   />
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 px-0.5">
+                    <span className="text-emerald-400">👤 Tú: {userPercent}%</span>
+                    <span className="text-pink-400">❤️ {partner ? partner.displayName : 'Pareja'}: {partnerPercent}%</span>
+                  </div>
                 </div>
               )}
 
               {/* Live Dollar Split Breakdown Card */}
-              <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800/80 space-y-1 text-xs">
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                  Desglose del Gasto (${parsedAmount.toFixed(2)}):
+              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2 text-xs">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                  <span>Cálculo Final del Gasto:</span>
+                  <span className="font-extrabold text-white text-sm">${parsedAmount.toFixed(2)}</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-200">
-                  <span className="font-medium">👤 Tu cuota ({userPercent}%):</span>
-                  <span className="font-extrabold text-emerald-400">${userShareAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-200">
-                  <span className="font-medium">❤️ Cuota de {partner ? partner.displayName : 'Pareja'} ({partnerPercent}%):</span>
-                  <span className="font-extrabold text-pink-400">${partnerShareAmount.toFixed(2)}</span>
+
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+                  <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                    <div className="text-[10px] text-slate-400 font-semibold">Tu Cuota ({userPercent}%):</div>
+                    <div className="text-base font-black text-emerald-400 mt-0.5">
+                      ${userShareAmount.toFixed(2)}
+                    </div>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                    <div className="text-[10px] text-slate-400 font-semibold">Cuota {partner ? partner.displayName : 'Pareja'} ({partnerPercent}%):</div>
+                    <div className="text-base font-black text-pink-400 mt-0.5">
+                      ${partnerShareAmount.toFixed(2)}
+                    </div>
+                  </div>
                 </div>
               </div>
 
