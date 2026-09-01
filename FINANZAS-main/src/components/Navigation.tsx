@@ -65,7 +65,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
       </aside>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 px-2 py-1.5 flex items-center justify-around shadow-md">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-1 py-1.5 flex items-center justify-around overflow-x-auto shadow-lg shadow-slate-900/10">
         {navItems.map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -73,14 +73,16 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
-                isActive ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+              className={`relative flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all min-w-[54px] shrink-0 active:scale-95 ${
+                isActive
+                  ? 'text-indigo-600 font-bold bg-indigo-50/80'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              <Icon className="w-5 h-5 mb-0.5" />
-              <span className="text-[10px] tracking-tight">{item.label}</span>
+              <Icon className={`w-5 h-5 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`} />
+              <span className="text-[10px] tracking-tight whitespace-nowrap mt-0.5">{item.label}</span>
               {item.badge !== undefined && item.badge > 0 && (
-                <span className="absolute top-0 right-1 w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-white" />
+                <span className="absolute top-1 right-1.5 w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-white" />
               )}
             </button>
           );

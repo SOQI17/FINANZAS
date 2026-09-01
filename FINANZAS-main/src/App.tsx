@@ -20,13 +20,13 @@ function MainAppContent() {
       <Header />
 
       {/* Main Body Layout */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto pb-20 md:pb-8">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto pb-24 md:pb-8">
         
         {/* Navigation Sidebar (Desktop) */}
         <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
 
         {/* Content View Area */}
-        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-full overflow-x-hidden">
+        <main className="flex-1 p-3 sm:p-6 md:p-8 max-w-full overflow-x-hidden">
           {activeTab === 'dashboard' && <Dashboard onNavigateToTab={(tab) => setActiveTab(tab)} />}
           {activeTab === 'transactions' && <TransactionsView />}
           {activeTab === 'accounts' && <AccountsView />}

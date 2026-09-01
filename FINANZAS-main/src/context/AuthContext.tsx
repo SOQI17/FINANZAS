@@ -3,6 +3,8 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
   signOut,
   User as FirebaseUser
 } from 'firebase/auth';
@@ -20,6 +22,7 @@ interface AuthContextType {
   signInDemoUser: (userNum?: 1 | 2) => Promise<void>;
   signUpWithEmail: (email: string, pass: string, displayName: string) => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
   linkPartnerWithCode: (code: string) => Promise<{ success: boolean; message: string }>;
   seedFirestore: () => Promise<void>;
@@ -135,6 +138,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      // Configure custom parameters if needed
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const cred = await signInWithPopup(auth, provider);
+      setIsDemoMode(false);
+      
+      const profile = await financeService.getUserProfile(cred.user.uid);
+      if (profile) {
+        setUser(profile);
+        await refreshRelationship(profile);
+      } else {
+        const newProfile: UserProfile = {
+          uid: cred.user.uid,
+          email: cred.user.email || '',
+          displayName: cred.user.displayName || cred.user.email?.split('@')[0] || 'Usuario',
+          inviteCode: generateInviteCode(),
+          currency: 'USD',
+          createdAt: new Date().toISOString(),
+        };
+        await financeService.createUserProfile(newProfile);
+        setUser(newProfile);
+        setPartner(null);
+        setCouple(null);
+      }
+    } catch (e: any) {
+      console.error('Error initiating Google Auth:', e);
+      // Handle pop-up blocked or closed by user gracefully
+      if (e.code === 'auth/popup-closed-by-user') {
+        throw new Error('Inicio de sesión cancelado.');
+      } else if (e.code === 'auth/unauthorized-domain') {
+        throw new Error('El dominio actual no está autorizado en la consola de Firebase. Por favor añade localhost en Firebase Auth.');
+      }
+      throw new Error(e.message || 'Error al iniciar sesión con Google.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOutUser = async () => {
     try {
       await signOut(auth);
@@ -195,6 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInDemoUser,
         signUpWithEmail,
         signInWithEmail,
+        signInWithGoogle,
         signOutUser,
         linkPartnerWithCode,
         seedFirestore,
