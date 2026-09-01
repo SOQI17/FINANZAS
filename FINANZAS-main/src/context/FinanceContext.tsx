@@ -89,46 +89,48 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const filteredTransactions = useMemo(() => {
     return rawTransactions.filter(t => {
       if (activeScope === 'individual') {
-        return t.scope === 'individual' && t.userId === user?.uid;
+        return t.scope === 'individual';
       } else {
         return t.scope === 'shared';
       }
     });
-  }, [rawTransactions, activeScope, user]);
+  }, [rawTransactions, activeScope]);
 
   // Filter accounts according to active scope
   const filteredAccounts = useMemo(() => {
     return rawAccounts.filter(a => {
       if (activeScope === 'individual') {
-        return a.ownerType === 'user' && a.ownerId === user?.uid;
+        return a.ownerType === 'user';
       } else {
-        return a.ownerType === 'couple' && (couple ? a.ownerId === couple.coupleId : true);
+        return a.ownerType === 'couple';
       }
     });
-  }, [rawAccounts, activeScope, user, couple]);
+  }, [rawAccounts, activeScope]);
 
   // Filter budgets according to active scope
   const filteredBudgets = useMemo(() => {
     return rawBudgets.filter(b => {
       if (activeScope === 'individual') {
-        return b.targetType === 'individual' && b.targetId === user?.uid;
+        return b.targetType === 'individual';
       } else {
         return b.targetType === 'shared';
       }
     });
-  }, [rawBudgets, activeScope, user]);
+  }, [rawBudgets, activeScope]);
 
-  // Calculate Metrics
+  // Monthly filtered transactions according to selected period (YYYY-MM)
+  const periodTransactions = useMemo(() => {
+    return filteredTransactions.filter(t => t.date.startsWith(selectedPeriod));
+  }, [filteredTransactions, selectedPeriod]);
+
+  // Calculate Metrics for Current Period
   const metrics: FinancialMetrics = useMemo(() => {
-    const totalBalance = filteredAccounts.reduce((sum, a) => sum + a.balance, 0);
-
-    const periodTxs = filteredTransactions.filter(t => t.date.startsWith(selectedPeriod));
-
-    const totalIncome = periodTxs
+    const totalBalance = filteredAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+    const totalIncome = periodTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const totalExpenses = periodTxs
+    const totalExpenses = periodTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
 
@@ -136,15 +138,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const savingsRate = totalIncome > 0 ? (savingsAmount / totalIncome) * 100 : 0;
 
     const expenseByCategory: Record<string, number> = {};
-    periodTxs
+    periodTransactions
       .filter(t => t.type === 'expense')
       .forEach(t => {
         expenseByCategory[t.category] = (expenseByCategory[t.category] || 0) + t.amount;
       });
 
-    // Monthly Trend (last 3 months)
-    const months = ['2026-05', '2026-06', '2026-07'];
-    const monthlyTrend = months.map(m => {
+    // Generate monthly trend
+    const periods = ['2026-07', '2026-06', '2026-05'];
+    const monthlyTrend = periods.map(m => {
       const mTxs = filteredTransactions.filter(t => t.date.startsWith(m));
       const inc = mTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
       const exp = mTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -164,7 +166,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       expenseByCategory,
       monthlyTrend,
     };
-  }, [filteredAccounts, filteredTransactions, selectedPeriod]);
+  }, [filteredAccounts, periodTransactions, filteredTransactions]);
 
   // Calculate Shared Debt Balance
   const sharedDebt: SharedDebtBalance = useMemo(() => {
@@ -178,8 +180,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Generate Financial Insights
   const insights = useMemo(() => {
-    return generateFinancialInsights(filteredTransactions, filteredBudgets, metrics);
-  }, [filteredTransactions, filteredBudgets, metrics]);
+    return generateFinancialInsights(periodTransactions, filteredBudgets, metrics);
+  }, [periodTransactions, filteredBudgets, metrics]);
 
   // Actions
   const addTransaction = async (txData: Omit<Transaction, 'transactionId' | 'createdAt'>) => {
@@ -189,27 +191,41 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
     };
 
-    if (isDemoMode) {
-      setRawTransactions(prev => [newTx, ...prev]);
-      if (newTx.accountId) {
-        setRawAccounts(prev =>
-          prev.map(a =>
-            a.accountId === newTx.accountId
-              ? { ...a, balance: a.balance + (newTx.type === 'income' ? newTx.amount : -newTx.amount) }
-              : a
-          )
-        );
+    // Optimistic local state update (0ms instant response)
+    setRawTransactions(prev => [newTx, ...prev.filter(t => t.transactionId !== newTx.transactionId)]);
+    
+    if (newTx.accountId) {
+      setRawAccounts(prev =>
+        prev.map(a =>
+          a.accountId === newTx.accountId
+            ? { ...a, balance: a.balance + (newTx.type === 'income' ? newTx.amount : -newTx.amount) }
+            : a
+        )
+      );
+    }
+
+    // Auto-switch scope to transaction scope so it immediately displays
+    if (newTx.scope !== activeScope) {
+      setActiveScope(newTx.scope);
+    }
+
+    if (!isDemoMode) {
+      try {
+        await financeService.addTransaction(newTx);
+      } catch (err) {
+        console.error('Error saving transaction to Firestore:', err);
       }
-    } else {
-      await financeService.addTransaction(newTx);
     }
   };
 
   const deleteTransaction = async (id: string) => {
-    if (isDemoMode) {
-      setRawTransactions(prev => prev.filter(t => t.transactionId !== id));
-    } else {
-      await financeService.deleteTransaction(id);
+    setRawTransactions(prev => prev.filter(t => t.transactionId !== id));
+    if (!isDemoMode) {
+      try {
+        await financeService.deleteTransaction(id);
+      } catch (err) {
+        console.error('Error deleting transaction from Firestore:', err);
+      }
     }
   };
 
