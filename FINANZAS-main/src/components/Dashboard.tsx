@@ -349,36 +349,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
         </div>
 
         <div className="divide-y divide-slate-100">
-          {filteredTransactions.slice(0, 5).map(tx => (
-            <div key={tx.transactionId} className="py-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  tx.type === 'income'
-                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-600 border border-rose-200'
-                }`}>
-                  {tx.type === 'income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-slate-900">{tx.description || tx.category}</h4>
-                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                    <span>{tx.category}</span>
-                    <span>•</span>
-                    <span>{tx.date}</span>
-                    {tx.scope === 'shared' && (
-                      <span className="px-1.5 py-0.2 bg-pink-50 text-pink-700 text-[10px] rounded border border-pink-200 font-semibold">
-                        Pagado por {tx.userName || 'Pareja'}
-                      </span>
-                    )}
+          {filteredTransactions.slice(0, 5).map(tx => {
+            const payerName = (tx.paidBy && partner && (tx.paidBy === partner.uid || tx.paidBy === 'partner_1' || tx.paidBy === partner.inviteCode))
+              ? (partner.displayName || 'Pareja')
+              : (tx.paidBy && user && (tx.paidBy === user.uid || tx.paidBy === 'user_1' || tx.paidBy === user.inviteCode))
+              ? (user.displayName || 'Tú')
+              : (tx.userName || 'Pareja');
+
+            return (
+              <div key={tx.transactionId} className="py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    tx.type === 'income'
+                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-600 border border-rose-200'
+                  }`}>
+                    {tx.type === 'income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900">{tx.description || tx.category}</h4>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                      <span>{tx.category}</span>
+                      <span>•</span>
+                      <span>{tx.date}</span>
+                      {tx.scope === 'shared' && (
+                        <span className="px-1.5 py-0.2 bg-pink-50 text-pink-700 text-[10px] rounded border border-pink-200 font-semibold">
+                          Pagado por {payerName}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className={`text-sm font-extrabold ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
+                <div className={`text-sm font-extrabold ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                  {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {filteredTransactions.length === 0 && (
             <div className="text-center py-8 text-xs text-slate-500">

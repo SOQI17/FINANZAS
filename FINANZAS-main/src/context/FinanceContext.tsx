@@ -188,7 +188,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const newTx: Transaction = {
       ...txData,
       userId: user?.uid || txData.userId || 'user_1',
-      userName: user?.displayName || txData.userName || 'Usuario',
+      userName: txData.userName || user?.displayName || 'Usuario',
       coupleId: couple?.coupleId || txData.coupleId || null,
       transactionId: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       createdAt: new Date().toISOString(),

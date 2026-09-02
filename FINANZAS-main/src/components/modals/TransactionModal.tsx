@@ -87,9 +87,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
       splitRatioUser2 = uRatio;
     }
 
+    const isPartnerPayer = scope === 'shared' && (paidBy === partner?.uid || paidBy === 'partner_1');
+    const selectedPayerName = isPartnerPayer ? (partner?.displayName || 'Pareja') : (user?.displayName || 'Usuario');
+
     await addTransaction({
       userId: user?.uid || 'user_1',
-      userName: user?.displayName || 'Usuario',
+      userName: selectedPayerName,
       coupleId: couple?.coupleId || null,
       scope,
       type,

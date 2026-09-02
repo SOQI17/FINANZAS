@@ -138,34 +138,41 @@ export const TransactionsView: React.FC = () => {
       {/* Transactions Table / Cards */}
       <div className="bg-slate-900/90 rounded-2xl border border-slate-800 overflow-hidden shadow-md">
         <div className="divide-y divide-slate-800">
-          {txList.map(tx => (
-            <div key={tx.transactionId} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-800/40 transition">
-              <div className="flex items-center gap-3.5">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  tx.type === 'income'
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                }`}>
-                  {tx.type === 'income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                </div>
+          {txList.map(tx => {
+            const payerName = (tx.paidBy && partner && (tx.paidBy === partner.uid || tx.paidBy === 'partner_1' || tx.paidBy === partner.inviteCode))
+              ? (partner.displayName || 'Pareja')
+              : (tx.paidBy && user && (tx.paidBy === user.uid || tx.paidBy === 'user_1' || tx.paidBy === user.inviteCode))
+              ? (user.displayName || 'Tú')
+              : (tx.userName || 'Pareja');
 
-                <div>
-                  <h4 className="font-bold text-sm sm:text-base text-white">{tx.description}</h4>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-0.5">
-                    <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300 font-medium">
-                      {tx.category}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> {tx.date}
-                    </span>
-                    {tx.scope === 'shared' && (
-                      <span className="px-1.5 py-0.5 bg-pink-500/10 text-pink-400 rounded text-[10px] font-semibold border border-pink-500/20">
-                        Pagado por {tx.userName || 'Pareja'} ({tx.splitMethod === '50_50' ? 'División 50/50' : 'Especial'})
+            return (
+              <div key={tx.transactionId} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-800/40 transition">
+                <div className="flex items-center gap-3.5">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    tx.type === 'income'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                  }`}>
+                    {tx.type === 'income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                  </div>
+
+                  <div>
+                    <h4 className="font-bold text-sm sm:text-base text-white">{tx.description}</h4>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-0.5">
+                      <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300 font-medium">
+                        {tx.category}
                       </span>
-                    )}
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> {tx.date}
+                      </span>
+                      {tx.scope === 'shared' && (
+                        <span className="px-1.5 py-0.5 bg-pink-500/10 text-pink-400 rounded text-[10px] font-semibold border border-pink-500/20">
+                          Pagado por {payerName} ({tx.splitMethod === '50_50' ? 'División 50/50' : 'Especial'})
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
               <div className="flex items-center gap-3">
                 <div className="text-right">
