@@ -11,14 +11,15 @@ import {
   ReceiptText,
   UserPlus,
   ShieldCheck,
-  Pencil
+  Pencil,
+  UserX
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useFinance } from '../context/FinanceContext';
 import { SettleDebtModal } from './modals/SettleDebtModal';
 
 export const CoupleView: React.FC = () => {
-  const { user, partner, couple, linkPartnerWithCode, updatePartnerName } = useAuth();
+  const { user, partner, couple, linkPartnerWithCode, updatePartnerName, unlinkPartner } = useAuth();
   const { sharedDebt, filteredTransactions } = useFinance();
 
   const [partnerCodeInput, setPartnerCodeInput] = useState('');
@@ -41,6 +42,12 @@ export const CoupleView: React.FC = () => {
     if (!editingName.trim()) return;
     await updatePartnerName(editingName.trim());
     setIsEditingPartnerName(false);
+  };
+
+  const handleUnlinkPartner = async () => {
+    if (window.confirm('¿Estás seguro de que deseas desvincularte de tu pareja? Los datos históricos no se borrarán, pero dejarán de sincronizarse.')) {
+      await unlinkPartner();
+    }
   };
 
   const handleLinkPartner = async (e: React.FormEvent) => {
@@ -148,9 +155,19 @@ export const CoupleView: React.FC = () => {
               </div>
             </div>
 
-            <div className="text-right sm:border-l sm:border-slate-800 sm:pl-6">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Tu Código de Invitación</span>
-              <p className="font-mono text-sm font-bold text-pink-400">{user?.inviteCode}</p>
+            <div className="flex flex-col items-end gap-2 text-right sm:border-l sm:border-slate-800 sm:pl-6">
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Tu Código de Invitación</span>
+                <p className="font-mono text-sm font-bold text-pink-400">{user?.inviteCode}</p>
+              </div>
+              <button
+                onClick={handleUnlinkPartner}
+                className="mt-1 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold transition"
+                title="Desvincular la cuenta de tu pareja"
+              >
+                <UserX className="w-3.5 h-3.5" />
+                <span>Desvincular Pareja</span>
+              </button>
             </div>
           </div>
         ) : (

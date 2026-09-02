@@ -9,7 +9,8 @@ import {
   signOut,
   User as FirebaseUser
 } from 'firebase/auth';
-import { auth } from '../firebase';
+import { doc, updateDoc, deleteDoc, deleteField } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import { UserProfile, Couple } from '../types';
 import { financeService, generateInviteCode } from '../services/financeService';
 import { DEMO_USER_1, DEMO_USER_2, DEMO_COUPLE } from '../data/demoData';
@@ -28,6 +29,7 @@ interface AuthContextType {
   signOutUser: () => Promise<void>;
   linkPartnerWithCode: (code: string) => Promise<{ success: boolean; message: string }>;
   updatePartnerName: (newName: string) => Promise<void>;
+  unlinkPartner: () => Promise<void>;
   seedFirestore: () => Promise<void>;
 }
 
@@ -294,6 +296,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     financeService.saveLocalUser(updatedPartner);
   };
 
+  const unlinkPartner = async () => {
+    if (!user) return;
+
+    const currentPartner = partner;
+    const currentCouple = couple;
+
+    const unlinkedUser: UserProfile = {
+      ...user,
+      partnerId: undefined,
+      coupleId: undefined,
+    };
+
+    setUser(unlinkedUser);
+    setPartner(null);
+    setCouple(null);
+
+    financeService.saveLocalUser(unlinkedUser);
+    try {
+      localStorage.removeItem('duofinanzas_known_couples');
+    } catch (e) {}
+
+    if (auth.currentUser) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          partnerId: deleteField(),
+          coupleId: deleteField(),
+        });
+        if (currentPartner?.uid) {
+          await updateDoc(doc(db, 'users', currentPartner.uid), {
+            partnerId: deleteField(),
+            coupleId: deleteField(),
+          });
+        }
+        if (currentCouple?.coupleId) {
+          await deleteDoc(doc(db, 'couples', currentCouple.coupleId));
+        }
+      } catch (e) {
+        console.warn('Could not unlink in Firestore:', e);
+      }
+    }
+  };
+
   const seedFirestore = async () => {
     if (!user) return;
     setLoading(true);
@@ -317,6 +361,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOutUser,
         linkPartnerWithCode,
         updatePartnerName,
+        unlinkPartner,
         seedFirestore,
       }}
     >
