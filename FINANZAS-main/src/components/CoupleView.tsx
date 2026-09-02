@@ -150,10 +150,17 @@ export const CoupleView: React.FC = () => {
                 </div>
 
                 {linkResult.message && (
-                  <p className={`text-xs mt-2 ${linkResult.success ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <p className={`text-xs mt-2 ${linkResult.success ? 'text-emerald-400' : 'text-rose-400 font-semibold'}`}>
                     {linkResult.message}
                   </p>
                 )}
+
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-[11px] flex items-start gap-2 mt-3 leading-relaxed">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <div>
+                    <strong className="text-amber-200">¿Problemas al vincular?</strong> Asegúrate de que tu pareja haya iniciado sesión con Google y que ninguno tenga un <em>bloqueador de anuncios (AdBlock/Brave)</em> activo, ya que este bloquea los servidores de Firebase.
+                  </div>
+                </div>
               </form>
             </div>
           </div>
