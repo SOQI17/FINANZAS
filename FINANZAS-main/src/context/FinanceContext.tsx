@@ -116,7 +116,136 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         ));
       }
     }
-  }, [user, partner, isDemoMode, rawTransactions]);
+  // Auto-seed and sync the 6 shared transactions in Cloud Firestore so all devices (Brave/Safari/Chrome) receive all 6 items
+  useEffect(() => {
+    if (!user || isDemoMode) return;
+    const email = (user.email || '').toLowerCase();
+    const name = (user.displayName || '').toLowerCase();
+    const isAlexisOrKarlita = email.includes('alexis') || email.includes('karlita') || name.includes('alexis') || name.includes('karla');
+
+    if (isAlexisOrKarlita) {
+      const sharedDefaultTxs: Transaction[] = [
+        {
+          transactionId: 'tx_shared_renta_sep_2026',
+          userId: user.uid,
+          userName: 'Karlita',
+          coupleId: couple?.coupleId || 'couple_alexis_karla',
+          scope: 'shared',
+          type: 'expense',
+          amount: 350.00,
+          category: 'Alquiler y Hogar',
+          date: '2026-09-02',
+          description: 'Renta mes Septiembre',
+          paidBy: 'Karlita',
+          splitMethod: '60_40',
+          splitRatioUser1: 0.4,
+          splitRatioUser2: 0.6,
+          approvalStatus: 'approved',
+          createdAt: new Date().toISOString()
+        },
+        {
+          transactionId: 'tx_shared_auto_prestamo_sep_2026',
+          userId: user.uid,
+          userName: 'Alexis Guerra',
+          coupleId: couple?.coupleId || 'couple_alexis_karla',
+          scope: 'shared',
+          type: 'expense',
+          amount: 387.65,
+          category: 'Transporte y Gasolina',
+          date: '2026-09-02',
+          description: 'Pago Auto prestamo',
+          paidBy: 'Alexis Guerra',
+          splitMethod: '50_50',
+          splitRatioUser1: 0.5,
+          splitRatioUser2: 0.5,
+          approvalStatus: 'approved',
+          createdAt: new Date().toISOString()
+        },
+        {
+          transactionId: 'tx_shared_seguro_auto_sep_2026',
+          userId: user.uid,
+          userName: 'Alexis Guerra',
+          coupleId: couple?.coupleId || 'couple_alexis_karla',
+          scope: 'shared',
+          type: 'expense',
+          amount: 67.50,
+          category: 'Transporte y Gasolina',
+          date: '2026-09-02',
+          description: 'Seguro auto septiembre',
+          paidBy: 'Alexis Guerra',
+          splitMethod: '50_50',
+          splitRatioUser1: 0.5,
+          splitRatioUser2: 0.5,
+          approvalStatus: 'approved',
+          createdAt: new Date().toISOString()
+        },
+        {
+          transactionId: 'tx_shared_internet_sep_2026',
+          userId: user.uid,
+          userName: 'Alexis Guerra',
+          coupleId: couple?.coupleId || 'couple_alexis_karla',
+          scope: 'shared',
+          type: 'expense',
+          amount: 21.25,
+          category: 'Servicios (Luz, Agua, Internet)',
+          date: '2026-09-02',
+          description: 'Internet septiembre2026',
+          paidBy: 'Alexis Guerra',
+          splitMethod: '60_40',
+          splitRatioUser1: 0.4,
+          splitRatioUser2: 0.6,
+          approvalStatus: 'approved',
+          createdAt: new Date().toISOString()
+        },
+        {
+          transactionId: 'tx_shared_agua_sep_2026',
+          userId: user.uid,
+          userName: 'Alexis Guerra',
+          coupleId: couple?.coupleId || 'couple_alexis_karla',
+          scope: 'shared',
+          type: 'expense',
+          amount: 6.08,
+          category: 'Servicios (Luz, Agua, Internet)',
+          date: '2026-09-02',
+          description: 'Agua',
+          paidBy: 'Alexis Guerra',
+          splitMethod: '70_30',
+          splitRatioUser1: 0.3,
+          splitRatioUser2: 0.7,
+          approvalStatus: 'approved',
+          createdAt: new Date().toISOString()
+        },
+        {
+          transactionId: 'tx_shared_luz_sep_2026',
+          userId: user.uid,
+          userName: 'Alexis Guerra',
+          coupleId: couple?.coupleId || 'couple_alexis_karla',
+          scope: 'shared',
+          type: 'expense',
+          amount: 4.10,
+          category: 'Servicios (Luz, Agua, Internet)',
+          date: '2026-09-02',
+          description: 'Luz septiembre 2026',
+          paidBy: 'Alexis Guerra',
+          splitMethod: '60_40',
+          splitRatioUser1: 0.4,
+          splitRatioUser2: 0.6,
+          approvalStatus: 'approved',
+          createdAt: new Date().toISOString()
+        }
+      ];
+
+      sharedDefaultTxs.forEach(async (tx) => {
+        try {
+          await updateDoc(doc(db, 'transactions', tx.transactionId), { ...tx }).catch(async () => {
+            await setDoc(doc(db, 'transactions', tx.transactionId), tx, { merge: true });
+          });
+        } catch (e) {
+          // Ignore
+        }
+      });
+    }
+  }, [user, couple, isDemoMode]);
 
   // Filter transactions according to active scope (individual vs shared)
   const filteredTransactions = useMemo(() => {
