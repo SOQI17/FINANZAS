@@ -104,16 +104,24 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [rawTransactions, activeScope, user]);
 
-  // Unified accounts list with dynamic balance calculation (base balance minus expenses plus incomes)
+  // Unified accounts list with dynamic balance calculation (only subtract expenses paid out of pocket by user & approved)
   const filteredAccounts = useMemo(() => {
     return rawAccounts.map((acc, idx) => {
       const accTxs = rawTransactions.filter(t =>
-        t.accountId === acc.accountId || (!t.accountId && idx === 0)
+        (t.accountId === acc.accountId || (!t.accountId && idx === 0)) &&
+        t.approvalStatus !== 'pending' &&
+        t.approvalStatus !== 'rejected'
       );
-      const incomeSum = accTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-      const expenseSum = accTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
 
-      // Base account balance minus net expenses
+      const incomeSum = accTxs
+        .filter(t => t.type === 'income')
+        .reduce((s, t) => s + t.amount, 0);
+
+      // Only subtract expenses that were paid out of pocket by this user
+      const expenseSum = accTxs
+        .filter(t => t.type === 'expense' && (t.paidBy === user?.uid || t.userId === user?.uid || t.paidBy === 'user_1'))
+        .reduce((s, t) => s + t.amount, 0);
+
       const baseBalance = acc.balance > 0 && acc.balance !== 1000 ? acc.balance : 1000;
       const currentBalance = Math.max(0, baseBalance + incomeSum - expenseSum);
 
@@ -122,7 +130,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         balance: currentBalance,
       };
     });
-  }, [rawAccounts, rawTransactions]);
+  }, [rawAccounts, rawTransactions, user]);
 
   // Filter budgets according to active scope
   const filteredBudgets = useMemo(() => {
