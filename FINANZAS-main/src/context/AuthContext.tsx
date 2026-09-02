@@ -66,13 +66,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (alexisUser && karlaUser) {
           const sharedCoupleId = (alexisUser as UserProfile).coupleId || (karlaUser as UserProfile).coupleId || `couple_alexis_karla`;
+          let partnerProfile: UserProfile | null = null;
 
-          if (currentUser.uid === (alexisUser as UserProfile).uid) {
+          if (currentUser.uid === (alexisUser as UserProfile).uid || currentUser.email?.toLowerCase().includes('alexis')) {
             pId = (karlaUser as UserProfile).uid;
             cId = sharedCoupleId;
-          } else if (currentUser.uid === (karlaUser as UserProfile).uid) {
+            partnerProfile = karlaUser;
+          } else {
             pId = (alexisUser as UserProfile).uid;
             cId = sharedCoupleId;
+            partnerProfile = alexisUser;
           }
 
           // Persist linked couple in Firestore
@@ -85,6 +88,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             status: 'active',
             createdAt: new Date().toISOString(),
           };
+
+          setPartner(partnerProfile);
+          setCouple(coupleDoc);
 
           await setDoc(doc(db, 'couples', sharedCoupleId), coupleDoc, { merge: true });
           await setDoc(doc(db, 'users', (alexisUser as UserProfile).uid), { partnerId: (karlaUser as UserProfile).uid, coupleId: sharedCoupleId }, { merge: true });
@@ -104,18 +110,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    if (pId) {
+    if (pId && !partner) {
       const partnerProfile = await financeService.getUserProfile(pId);
-      setPartner(partnerProfile || (pId === DEMO_USER_2.uid ? DEMO_USER_2 : null));
-    } else {
-      setPartner(null);
+      if (partnerProfile) setPartner(partnerProfile);
     }
 
-    if (cId) {
+    if (cId && !couple) {
       const coupleDoc = await financeService.getCouple(cId);
-      setCouple(coupleDoc || (cId === DEMO_COUPLE.coupleId ? DEMO_COUPLE : null));
-    } else {
-      setCouple(null);
+      if (coupleDoc) setCouple(coupleDoc);
     }
   };
 

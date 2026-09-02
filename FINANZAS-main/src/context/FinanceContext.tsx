@@ -248,10 +248,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Calculate Shared Debt Balance
   const sharedDebt: SharedDebtBalance = useMemo(() => {
-    const u1Id = user?.uid || DEMO_USER_1.uid;
-    const u1Name = user?.displayName || DEMO_USER_1.displayName;
-    const u2Id = partner?.uid || DEMO_USER_2.uid;
-    const u2Name = partner?.displayName || DEMO_USER_2.displayName;
+    const isAlexis = (user?.displayName || user?.email || '').toLowerCase().includes('alexis');
+    const isKarla = (user?.displayName || user?.email || '').toLowerCase().includes('karla') ||
+                    (user?.displayName || user?.email || '').toLowerCase().includes('karlita');
+
+    const fallbackPartnerName = isKarla ? 'Alexis Guerra' : (isAlexis ? 'Karla Vizcaíno' : 'Pareja');
+
+    const u1Id = user?.uid || 'user_1';
+    const u1Name = user?.displayName || (isKarla ? 'Karla Vizcaíno' : (isAlexis ? 'Alexis Guerra' : 'Usuario'));
+    const u2Id = partner?.uid || 'partner_1';
+    const u2Name = partner?.displayName || fallbackPartnerName;
 
     return calculateSharedDebtBalance(rawTransactions, u1Id, u2Id, u1Name, u2Name);
   }, [rawTransactions, user, partner]);
