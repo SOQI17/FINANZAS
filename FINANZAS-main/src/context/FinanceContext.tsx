@@ -47,9 +47,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activeScope, setActiveScope] = useState<FinancialScope>('individual');
   const [selectedPeriod, setSelectedPeriod] = useState<string>(getCurrentPeriod());
 
-  const [rawTransactions, setRawTransactions] = useState<Transaction[]>(DEMO_TRANSACTIONS);
-  const [rawAccounts, setRawAccounts] = useState<BankAccount[]>(DEMO_ACCOUNTS);
-  const [rawBudgets, setRawBudgets] = useState<Budget[]>(DEMO_BUDGETS);
+  const [rawTransactions, setRawTransactions] = useState<Transaction[]>([]);
+  const [rawAccounts, setRawAccounts] = useState<BankAccount[]>([]);
+  const [rawBudgets, setRawBudgets] = useState<Budget[]>([]);
 
   // Subscribe or fetch data
   useEffect(() => {
@@ -112,20 +112,29 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [rawTransactions, activeScope, user, partner]);
 
+  const isAlexisOrKarlitaOrDemo = useMemo(() => {
+    if (isDemoMode) return true;
+    const name = (user?.displayName || user?.email || '').toLowerCase();
+    const partnerName = (partner?.displayName || partner?.email || '').toLowerCase();
+    return name.includes('alexis') || name.includes('karlita') || partnerName.includes('alexis') || partnerName.includes('karlita');
+  }, [user, partner, isDemoMode]);
+
   // Unified accounts list with dynamic balance calculation (only subtract expenses paid out of pocket by user & approved)
   const filteredAccounts = useMemo(() => {
-    const baseList = rawAccounts.length > 0 ? rawAccounts : [
-      {
-        accountId: 'default_acc',
-        ownerId: user?.uid || 'user_1',
-        ownerType: 'user' as const,
-        name: 'Cuenta Principal',
-        type: 'checking' as const,
-        balance: 1000,
-        currency: 'USD',
-        createdAt: new Date().toISOString(),
-      }
-    ];
+    const baseList = rawAccounts.length > 0
+      ? rawAccounts
+      : (isAlexisOrKarlitaOrDemo ? [
+          {
+            accountId: 'default_acc',
+            ownerId: user?.uid || 'user_1',
+            ownerType: 'user' as const,
+            name: 'Cuenta Principal',
+            type: 'checking' as const,
+            balance: 1000,
+            currency: 'USD',
+            createdAt: new Date().toISOString(),
+          }
+        ] : []);
 
     return baseList.map((acc, idx) => {
       const accTxs = rawTransactions.filter(t =>

@@ -71,7 +71,9 @@ function getLocalUserByCode(code: string): UserProfile | null {
 
 function saveLocalTransaction(tx: Transaction): void {
   try {
-    const raw = localStorage.getItem('duofinanzas_local_transactions');
+    const uid = auth.currentUser?.uid || tx.userId || 'user_1';
+    const key = `duofinanzas_local_txs_${uid}`;
+    const raw = localStorage.getItem(key);
     const txs: Transaction[] = raw ? JSON.parse(raw) : [];
     const idx = txs.findIndex(t => t.transactionId === tx.transactionId);
     if (idx >= 0) {
@@ -79,15 +81,17 @@ function saveLocalTransaction(tx: Transaction): void {
     } else {
       txs.unshift(tx);
     }
-    localStorage.setItem('duofinanzas_local_transactions', JSON.stringify(txs));
+    localStorage.setItem(key, JSON.stringify(txs));
   } catch (e) {
     // Ignore
   }
 }
 
-function getLocalTransactions(): Transaction[] {
+function getLocalTransactions(userId?: string): Transaction[] {
   try {
-    const raw = localStorage.getItem('duofinanzas_local_transactions');
+    const uid = userId || auth.currentUser?.uid || 'user_1';
+    const key = `duofinanzas_local_txs_${uid}`;
+    const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : [];
   } catch (e) {
     return [];
@@ -96,11 +100,13 @@ function getLocalTransactions(): Transaction[] {
 
 function deleteLocalTransaction(id: string): void {
   try {
-    const raw = localStorage.getItem('duofinanzas_local_transactions');
+    const uid = auth.currentUser?.uid || 'user_1';
+    const key = `duofinanzas_local_txs_${uid}`;
+    const raw = localStorage.getItem(key);
     if (!raw) return;
     const txs: Transaction[] = JSON.parse(raw);
     const filtered = txs.filter(t => t.transactionId !== id);
-    localStorage.setItem('duofinanzas_local_transactions', JSON.stringify(filtered));
+    localStorage.setItem(key, JSON.stringify(filtered));
   } catch (e) {
     // Ignore
   }
@@ -356,11 +362,9 @@ export const financeService = {
     coupleId: string | null,
     callback: (txs: Transaction[]) => void
   ) {
-    // 1. Immediately emit local cached transactions
-    const cached = getLocalTransactions();
-    if (cached.length > 0) {
-      callback(cached);
-    }
+    // 1. Immediately emit local cached transactions for THIS user
+    const cached = getLocalTransactions(userId);
+    callback(cached);
 
     if (!auth.currentUser) return () => {};
 
@@ -370,17 +374,24 @@ export const financeService = {
         const remoteTxs: Transaction[] = [];
         snapshot.forEach(docSnap => {
           const t = docSnap.data() as Transaction;
-          // Filter according to user, couple, or shared scope
-          if (t.userId === userId || (coupleId && t.coupleId === coupleId) || t.scope === 'shared') {
+          // Strictly filter: ONLY transactions belonging to this user, paid by this user, or matching the coupleId!
+          const isUserTx = t.userId === userId || t.paidBy === userId;
+          const isCoupleTx = Boolean(coupleId && t.coupleId === coupleId);
+
+          if (isUserTx || isCoupleTx) {
             remoteTxs.push(t);
             saveLocalTransaction(t);
           }
         });
 
-        // Combine local and remote without duplicates
-        const currentLocal = getLocalTransactions();
+        // Combine local and remote for THIS user
+        const currentLocal = getLocalTransactions(userId);
         const map = new Map<string, Transaction>();
-        currentLocal.forEach(t => map.set(t.transactionId, t));
+        currentLocal.forEach(t => {
+          if (t.userId === userId || t.paidBy === userId || (coupleId && t.coupleId === coupleId)) {
+            map.set(t.transactionId, t);
+          }
+        });
         remoteTxs.forEach(t => map.set(t.transactionId, t));
 
         const combined = Array.from(map.values());
@@ -388,10 +399,10 @@ export const financeService = {
         callback(combined);
       }, (error) => {
         // Keep local state intact on error
-        callback(getLocalTransactions());
+        callback(getLocalTransactions(userId));
       });
     } catch (e) {
-      callback(getLocalTransactions());
+      callback(getLocalTransactions(userId));
       return () => {};
     }
   },
