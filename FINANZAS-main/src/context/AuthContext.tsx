@@ -74,15 +74,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsDemoMode(false);
 
         const profile = await financeService.getUserProfile(fbUser.uid);
+        const fallbackName = fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Usuario');
+
         if (profile) {
-          setUser(profile);
-          await refreshRelationship(profile);
+          // Prevent non-Alexis emails from inheriting Alexis Guerra displayName
+          const isRealAlexisEmail = fbUser.email?.toLowerCase().includes('alexis');
+          const cleanDisplayName = (!isRealAlexisEmail && profile.displayName?.toLowerCase().includes('alexis'))
+            ? fallbackName
+            : (profile.displayName || fallbackName);
+
+          const sanitizedProfile: UserProfile = {
+            ...profile,
+            email: fbUser.email || profile.email,
+            displayName: cleanDisplayName,
+          };
+          setUser(sanitizedProfile);
+          await refreshRelationship(sanitizedProfile);
         } else {
           // New user profile
           const newProfile: UserProfile = {
             uid: fbUser.uid,
             email: fbUser.email || '',
-            displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'Usuario',
+            displayName: fallbackName,
             inviteCode: generateInviteCode(),
             currency: 'USD',
             createdAt: new Date().toISOString(),

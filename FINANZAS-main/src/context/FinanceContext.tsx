@@ -151,10 +151,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const isAlexisOrKarlitaOrDemo = useMemo(() => {
     if (isDemoMode) return true;
-    const name = (user?.displayName || user?.email || '').toLowerCase();
-    const partnerName = (partner?.displayName || partner?.email || '').toLowerCase();
-    return name.includes('alexis') || name.includes('karlita') || partnerName.includes('alexis') || partnerName.includes('karlita');
-  }, [user, partner, isDemoMode]);
+    const email = (user?.email || '').toLowerCase();
+    const name = (user?.displayName || '').toLowerCase();
+
+    const isRealAlexis = email.includes('alexis') || (name.includes('alexis') && !email.includes('@'));
+    const isRealKarlita = email.includes('karlita') || (name.includes('karlita') && !email.includes('@'));
+
+    return isRealAlexis || isRealKarlita;
+  }, [user, isDemoMode]);
 
   // Unified accounts list with dynamic balance calculation (only subtract expenses paid out of pocket by user & approved)
   const filteredAccounts = useMemo(() => {
