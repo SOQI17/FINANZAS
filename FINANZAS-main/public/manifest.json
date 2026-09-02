@@ -25,6 +25,23 @@
   "theme_color": "#0f172a",
   "display": "standalone",
   "orientation": "portrait",
+  "widgets": [
+    {
+      "name": "Suma2 Gasto Rápido",
+      "short_name": "+ Gasto",
+      "description": "Widget de ingreso rápido de gastos para Suma2",
+      "tag": "suma2-quick-expense",
+      "ms_ac_template": "/widget-template.json",
+      "data": "/widget-data.json",
+      "type": "application/json",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
   "shortcuts": [
     {
       "name": "⚡ Registrar Gasto Rápido",
