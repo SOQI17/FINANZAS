@@ -179,7 +179,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     return baseList.map((acc, idx) => {
       const accTxs = rawTransactions.filter(t =>
-        (t.accountId === acc.accountId || (!t.accountId && idx === 0)) &&
+        (t.accountId === acc.accountId || !t.accountId || idx === 0) &&
         t.approvalStatus !== 'pending' &&
         t.approvalStatus !== 'rejected'
       );
@@ -198,7 +198,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         })
         .reduce((s, t) => s + t.amount, 0);
 
-      const baseBalance = 1000;
+      const baseBalance = acc.balance > 0 && acc.balance !== 1000 ? acc.balance : 1000;
       const currentBalance = Math.max(0, baseBalance + incomeSum - expenseSum);
 
       return {
