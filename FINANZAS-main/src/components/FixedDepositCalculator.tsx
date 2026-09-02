@@ -14,24 +14,35 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 export const FixedDepositCalculator: React.FC = () => {
-  const { user, partner } = useAuth();
+  const { user, partner, isDemoMode } = useAuth();
+  const userId = user?.uid || 'guest';
 
   // Collapsible toggle state (default false as requested)
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
-  // Persistent States from localStorage
+  const isAlexisOrKarlitaOrDemo = (() => {
+    if (isDemoMode) return true;
+    if (!user) return false;
+    const email = (user.email || '').toLowerCase();
+    const name = (user.displayName || '').toLowerCase();
+    return email.includes('alexis') || email.includes('karlita') || (name.includes('alexis') && !email.includes('@'));
+  })();
+
+  // User-scoped Persistent States from localStorage (default 0 for new users)
   const [capital, setCapital] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem('suma2_policy_capital');
-      return saved !== null ? parseFloat(saved) : 2000;
+      const saved = localStorage.getItem(`suma2_policy_capital_${userId}`);
+      if (saved !== null) return parseFloat(saved);
+      // Default to 2000 only for Alexis/Karlita/Demo, 0 for new users
+      return isAlexisOrKarlitaOrDemo ? 2000 : 0;
     } catch (e) {
-      return 2000;
+      return isAlexisOrKarlitaOrDemo ? 2000 : 0;
     }
   });
 
   const [interestRate, setInterestRate] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem('suma2_policy_rate');
+      const saved = localStorage.getItem(`suma2_policy_rate_${userId}`);
       return saved !== null ? parseFloat(saved) : 5.25;
     } catch (e) {
       return 5.25;
@@ -40,7 +51,7 @@ export const FixedDepositCalculator: React.FC = () => {
 
   const [days, setDays] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem('suma2_policy_days');
+      const saved = localStorage.getItem(`suma2_policy_days_${userId}`);
       return saved !== null ? parseInt(saved, 10) : 365;
     } catch (e) {
       return 365;
@@ -49,22 +60,34 @@ export const FixedDepositCalculator: React.FC = () => {
 
   const [ownershipSplit, setOwnershipSplit] = useState<'individual' | 'equal_50_50'>(() => {
     try {
-      const saved = localStorage.getItem('suma2_policy_split');
+      const saved = localStorage.getItem(`suma2_policy_split_${userId}`);
       return saved === 'individual' ? 'individual' : 'equal_50_50';
     } catch (e) {
       return 'equal_50_50';
     }
   });
 
+  // Re-sync when logged in user changes
+  useEffect(() => {
+    try {
+      const savedCap = localStorage.getItem(`suma2_policy_capital_${userId}`);
+      if (savedCap !== null) {
+        setCapital(parseFloat(savedCap));
+      } else {
+        setCapital(isAlexisOrKarlitaOrDemo ? 2000 : 0);
+      }
+    } catch (e) {}
+  }, [userId, isAlexisOrKarlitaOrDemo]);
+
   // Save to localStorage on changes
   useEffect(() => {
     try {
-      localStorage.setItem('suma2_policy_capital', String(capital));
-      localStorage.setItem('suma2_policy_rate', String(interestRate));
-      localStorage.setItem('suma2_policy_days', String(days));
-      localStorage.setItem('suma2_policy_split', ownershipSplit);
+      localStorage.setItem(`suma2_policy_capital_${userId}`, String(capital));
+      localStorage.setItem(`suma2_policy_rate_${userId}`, String(interestRate));
+      localStorage.setItem(`suma2_policy_days_${userId}`, String(days));
+      localStorage.setItem(`suma2_policy_split_${userId}`, ownershipSplit);
     } catch (e) {}
-  }, [capital, interestRate, days, ownershipSplit]);
+  }, [capital, interestRate, days, ownershipSplit, userId]);
 
   // Calculation Logic
   const totalInterestYearly = capital * (interestRate / 100);
@@ -94,7 +117,7 @@ export const FixedDepositCalculator: React.FC = () => {
             <p className="text-xs text-slate-400">
               {isOpen
                 ? 'Proyecta los rendimientos mensuales y al vencimiento de tu capital'
-                : `Capital guardado: $${capital.toLocaleString('en-US')} • Ganancia estimada: +$${totalInterestTerm.toFixed(2)} (${days} días)`}
+                : `Capital ingresado: $${capital.toLocaleString('en-US')} • Ganancia estimada: +$${totalInterestTerm.toFixed(2)} (${days} días)`}
             </p>
           </div>
         </div>
@@ -136,7 +159,7 @@ export const FixedDepositCalculator: React.FC = () => {
                 value={capital || ''}
                 onChange={(e) => setCapital(Math.max(0, parseFloat(e.target.value) || 0))}
                 className="w-full text-lg font-extrabold bg-transparent text-white outline-none font-mono"
-                placeholder="2000"
+                placeholder="0"
               />
             </div>
 
