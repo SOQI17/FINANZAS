@@ -343,11 +343,11 @@ export const financeService = {
     coupleId: string | null,
     callback: (txs: Transaction[]) => void
   ) {
-    // 1. Immediately emit local cached transactions for THIS user
-    const cached = getLocalTransactions(userId);
-    callback(cached);
-
-    if (!auth.currentUser) return () => {};
+    if (!auth.currentUser) {
+      const cached = getLocalTransactions(userId);
+      callback(cached);
+      return () => {};
+    }
 
     try {
       const q = query(collection(db, 'transactions'));
@@ -355,31 +355,24 @@ export const financeService = {
         const remoteTxs: Transaction[] = [];
         snapshot.forEach(docSnap => {
           const t = docSnap.data() as Transaction;
-          // Include if own transaction OR any shared scope transaction
           const isUserTx = t.userId === userId || t.paidBy === userId;
           const isSharedTx = t.scope === 'shared' || Boolean(coupleId && t.coupleId === coupleId);
 
           if (isUserTx || isSharedTx) {
             remoteTxs.push(t);
-            saveLocalTransaction(t);
           }
         });
 
-        // Combine local and remote for THIS user
-        const currentLocal = getLocalTransactions(userId);
-        const map = new Map<string, Transaction>();
-        currentLocal.forEach(t => {
-          if (t.userId === userId || t.paidBy === userId || t.scope === 'shared' || (coupleId && t.coupleId === coupleId)) {
-            map.set(t.transactionId, t);
-          }
-        });
-        remoteTxs.forEach(t => map.set(t.transactionId, t));
+        remoteTxs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        const combined = Array.from(map.values());
-        combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        callback(combined);
+        // Update local cache to match Firestore source of truth
+        try {
+          const key = userId ? `duofinanzas_local_txs_${userId}` : 'duofinanzas_local_txs';
+          localStorage.setItem(key, JSON.stringify(remoteTxs));
+        } catch (e) {}
+
+        callback(remoteTxs);
       }, (error) => {
-        // Keep local state intact on error
         callback(getLocalTransactions(userId));
       });
     } catch (e) {
