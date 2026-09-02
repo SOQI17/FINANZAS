@@ -129,114 +129,93 @@ export function calculateSharedDebtBalance(
     cleanU2Name = cleanU1Name.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : 'Alexis Guerra';
   }
 
-  // Calculate shared expenses paid by user1 vs user2
-  let user1PaidTotal = 0;
-  let user2PaidTotal = 0;
+  const isU1Alexis = cleanU1Name.toLowerCase().includes('alexis');
 
-  // Amount user1 is responsible for vs amount user2 is responsible for
-  let user1ShareTotal = 0;
-  let user2ShareTotal = 0;
+  let alexisPaidTotal = 0;
+  let karlaPaidTotal = 0;
+  let alexisShareTotal = 0;
+  let karlaShareTotal = 0;
 
   transactions
     .filter(t => t.scope === 'shared' && t.type === 'expense' && t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
     .forEach(t => {
       const amount = t.amount;
-      const paidBy = t.paidBy || '';
+      const paidBy = (t.paidBy || '').toLowerCase();
+      const userName = (t.userName || '').toLowerCase();
 
-      const u1CleanName = user1Name ? user1Name.toLowerCase() : '';
-      const u2CleanName = user2Name ? user2Name.toLowerCase() : '';
-      const pByClean = paidBy.toLowerCase();
-      const uNameClean = (t.userName || '').toLowerCase();
+      const isAlexisPaid = paidBy.includes('alexis') || userName.includes('alexis') || (isU1Alexis && paidBy === user1Id.toLowerCase()) || (!isU1Alexis && paidBy === user2Id.toLowerCase());
 
-      const isUser1Paid = paidBy === user1Id ||
-        (u1CleanName && (pByClean.includes(u1CleanName) || uNameClean.includes(u1CleanName))) ||
-        (u1CleanName.includes('alexis') && (pByClean.includes('alexis') || uNameClean.includes('alexis')));
-
-      const isUser2Paid = paidBy === user2Id ||
-        (u2CleanName && (pByClean.includes(u2CleanName) || uNameClean.includes(u2CleanName))) ||
-        (u2CleanName.includes('karla') && (pByClean.includes('karla') || pByClean.includes('karlita') || uNameClean.includes('karla') || uNameClean.includes('karlita')));
-
-      if (isUser1Paid) {
-        user1PaidTotal += amount;
-      } else if (isUser2Paid) {
-        user2PaidTotal += amount;
+      if (isAlexisPaid) {
+        alexisPaidTotal += amount;
       } else {
-        // Fallback matching
-        if (pByClean.includes('alexis')) user1PaidTotal += amount;
-        else if (pByClean.includes('karla') || pByClean.includes('karlita')) user2PaidTotal += amount;
-        else user1PaidTotal += amount;
+        karlaPaidTotal += amount;
       }
 
-      // Calculate share responsibility
-      let u1Ratio = 0.5;
-      let u2Ratio = 0.5;
+      let alexisRatio = 0.5;
+      let karlaRatio = 0.5;
 
       if (t.splitRatioUser1 !== undefined && t.splitRatioUser2 !== undefined) {
-        u1Ratio = t.splitRatioUser1;
-        u2Ratio = t.splitRatioUser2;
-      } else if (t.splitMethod === 'full') {
-        // paidBy pays, assigned 100% to the other person
-        if (isUser1Paid) {
-          u1Ratio = 0;
-          u2Ratio = 1.0;
+        if (isU1Alexis) {
+          alexisRatio = t.splitRatioUser1;
+          karlaRatio = t.splitRatioUser2;
         } else {
-          u1Ratio = 1.0;
-          u2Ratio = 0;
+          alexisRatio = t.splitRatioUser2;
+          karlaRatio = t.splitRatioUser1;
         }
       } else if (t.splitMethod === '60_40') {
-        u1Ratio = isUser1Paid ? 0.6 : 0.4;
-        u2Ratio = isUser1Paid ? 0.4 : 0.6;
+        alexisRatio = 0.4;
+        karlaRatio = 0.6;
       } else if (t.splitMethod === '70_30') {
-        u1Ratio = isUser1Paid ? 0.7 : 0.3;
-        u2Ratio = isUser1Paid ? 0.3 : 0.7;
+        alexisRatio = 0.3;
+        karlaRatio = 0.7;
       } else if (t.splitMethod === '80_20') {
-        u1Ratio = isUser1Paid ? 0.8 : 0.2;
-        u2Ratio = isUser1Paid ? 0.2 : 0.8;
-      } else if (t.splitMethod === 'custom' || t.splitMethod === 'custom_percentage') {
-        u1Ratio = t.splitRatioUser1 ?? 0.5;
-        u2Ratio = t.splitRatioUser2 ?? 0.5;
+        alexisRatio = 0.2;
+        karlaRatio = 0.8;
+      } else if (t.splitMethod === 'full') {
+        if (isAlexisPaid) {
+          alexisRatio = 0;
+          karlaRatio = 1.0;
+        } else {
+          alexisRatio = 1.0;
+          karlaRatio = 0;
+        }
       }
 
-      user1ShareTotal += amount * u1Ratio;
-      user2ShareTotal += amount * u2Ratio;
+      alexisShareTotal += amount * alexisRatio;
+      karlaShareTotal += amount * karlaRatio;
     });
 
-  // Net balance for user1: (Amount user1 paid) - (Amount user1 was supposed to pay)
-  // If positive, user1 paid more than their share -> user2 owes user1
-  // If negative, user1 paid less than their share -> user1 owes user2
-  const user1Net = user1PaidTotal - user1ShareTotal;
+  const alexisNet = alexisPaidTotal - alexisShareTotal;
+  const netOwed = Math.round(alexisNet * 100) / 100;
 
-  if (Math.abs(user1Net) < 0.01) {
-    return {
-      netAmount: 0,
-      debtorId: null,
-      creditorId: null,
-      debtorName: '',
-      creditorName: '',
-      amountOwed: 0,
-      isBalanced: true,
-    };
-  } else if (user1Net > 0) {
-    // User2 owes User1
-    return {
-      netAmount: user1Net,
-      debtorId: user2Id,
-      creditorId: user1Id,
-      debtorName: cleanU2Name,
-      creditorName: cleanU1Name,
-      amountOwed: user1Net,
-      isBalanced: false,
-    };
+  let debtorId: string | null = null;
+  let creditorId: string | null = null;
+  let debtorName = '';
+  let creditorName = '';
+  let amountOwed = Math.abs(netOwed);
+  let isBalanced = false;
+
+  if (Math.abs(netOwed) < 0.01) {
+    isBalanced = true;
+  } else if (netOwed > 0) {
+    debtorName = 'Karlita';
+    creditorName = 'Alexis Guerra';
+    debtorId = isU1Alexis ? user2Id : user1Id;
+    creditorId = isU1Alexis ? user1Id : user2Id;
   } else {
-    // User1 owes User2
-    return {
-      netAmount: user1Net,
-      debtorId: user1Id,
-      creditorId: user2Id,
-      debtorName: cleanU1Name,
-      creditorName: cleanU2Name,
-      amountOwed: Math.abs(user1Net),
-      isBalanced: false,
-    };
+    debtorName = 'Alexis Guerra';
+    creditorName = 'Karlita';
+    debtorId = isU1Alexis ? user1Id : user2Id;
+    creditorId = isU1Alexis ? user2Id : user1Id;
   }
+
+  return {
+    netAmount: netOwed,
+    debtorId,
+    creditorId,
+    debtorName,
+    creditorName,
+    amountOwed,
+    isBalanced,
+  };
 }
