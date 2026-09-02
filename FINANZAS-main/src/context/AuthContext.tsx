@@ -132,7 +132,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           displayName: 'Karla Vizcaíno',
           email: 'karla@suma2.app',
           currency: 'USD',
-          inviteCode: 'PAREJA-KARLA'
+          inviteCode: 'PAREJA-KARLA',
+          createdAt: new Date().toISOString()
         };
       } else if (isKarla) {
         partnerProfile = {
@@ -140,7 +141,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           displayName: 'Alexis Guerra',
           email: 'alexisguerra9577@gmail.com',
           currency: 'USD',
-          inviteCode: 'PAREJA-ALEXIS'
+          inviteCode: 'PAREJA-ALEXIS',
+          createdAt: new Date().toISOString()
         };
       }
     }
