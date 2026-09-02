@@ -106,11 +106,40 @@ function deleteLocalTransaction(id: string): void {
   }
 }
 
+function saveLocalCouple(couple: Couple): void {
+  try {
+    const raw = localStorage.getItem('duofinanzas_known_couples');
+    const couples: Couple[] = raw ? JSON.parse(raw) : [];
+    const idx = couples.findIndex(c => c.coupleId === couple.coupleId || c.user1Id === couple.user1Id || c.user2Id === couple.user1Id);
+    if (idx >= 0) {
+      couples[idx] = couple;
+    } else {
+      couples.push(couple);
+    }
+    localStorage.setItem('duofinanzas_known_couples', JSON.stringify(couples));
+  } catch (e) {
+    // Ignore
+  }
+}
+
+function getLocalCouple(coupleId: string): Couple | null {
+  try {
+    const raw = localStorage.getItem('duofinanzas_known_couples');
+    if (!raw) return null;
+    const couples: Couple[] = JSON.parse(raw);
+    return couples.find(c => c.coupleId === coupleId || c.user1Id === coupleId || c.user2Id === coupleId) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export const financeService = {
   saveLocalUser,
   saveLocalTransaction,
   getLocalTransactions,
   deleteLocalTransaction,
+  saveLocalCouple,
+  getLocalCouple,
 
   // --- USERS ---
   async getUserProfile(uid: string): Promise<UserProfile | null> {
@@ -231,15 +260,18 @@ export const financeService = {
       createdAt: new Date().toISOString(),
     };
 
-    saveLocalUser({ ...user1, partnerId: partner.uid, coupleId });
-    saveLocalUser({ ...partner, partnerId: user1.uid, coupleId });
+    const updatedUser1: UserProfile = { ...user1, partnerId: partner.uid, coupleId };
+    const updatedUser2: UserProfile = { ...partner, partnerId: user1.uid, coupleId };
+
+    saveLocalUser(updatedUser1);
+    saveLocalUser(updatedUser2);
+    saveLocalCouple(couple);
 
     if (auth.currentUser) {
       try {
         await setDoc(doc(db, 'couples', coupleId), couple);
-        // Update both user profiles in Firestore
-        await updateDoc(doc(db, 'users', user1.uid), { partnerId: partner.uid, coupleId });
-        await updateDoc(doc(db, 'users', partner.uid), { partnerId: user1.uid, coupleId });
+        await setDoc(doc(db, 'users', user1.uid), updatedUser1, { merge: true });
+        await setDoc(doc(db, 'users', partner.uid), updatedUser2, { merge: true });
       } catch (e) {
         // Silently fall back locally
       }
@@ -249,18 +281,23 @@ export const financeService = {
   },
 
   async getCouple(coupleId: string): Promise<Couple | null> {
+    const localCouple = getLocalCouple(coupleId);
     if (!auth.currentUser) {
+      if (localCouple) return localCouple;
       if (coupleId === DEMO_COUPLE.coupleId) return DEMO_COUPLE;
       return null;
     }
     try {
       const snap = await getDoc(doc(db, 'couples', coupleId));
       if (snap.exists()) {
-        return snap.data() as Couple;
+        const c = snap.data() as Couple;
+        saveLocalCouple(c);
+        return c;
       }
     } catch (e) {
       // Fall back
     }
+    if (localCouple) return localCouple;
     if (coupleId === DEMO_COUPLE.coupleId) return DEMO_COUPLE;
     return null;
   },

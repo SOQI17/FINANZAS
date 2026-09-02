@@ -42,16 +42,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Load partner and couple details if user has coupleId/partnerId
   const refreshRelationship = async (currentUser: UserProfile) => {
-    if (currentUser.partnerId) {
-      const partnerProfile = await financeService.getUserProfile(currentUser.partnerId);
-      setPartner(partnerProfile || (currentUser.partnerId === DEMO_USER_2.uid ? DEMO_USER_2 : null));
+    let pId = currentUser.partnerId;
+    let cId = currentUser.coupleId;
+
+    if (!pId || !cId) {
+      const localProf = await financeService.getUserProfile(currentUser.uid);
+      if (localProf?.partnerId) pId = localProf.partnerId;
+      if (localProf?.coupleId) cId = localProf.coupleId;
+    }
+
+    if (pId) {
+      const partnerProfile = await financeService.getUserProfile(pId);
+      setPartner(partnerProfile || (pId === DEMO_USER_2.uid ? DEMO_USER_2 : null));
     } else {
       setPartner(null);
     }
 
-    if (currentUser.coupleId) {
-      const coupleDoc = await financeService.getCouple(currentUser.coupleId);
-      setCouple(coupleDoc || (currentUser.coupleId === DEMO_COUPLE.coupleId ? DEMO_COUPLE : null));
+    if (cId) {
+      const coupleDoc = await financeService.getCouple(cId);
+      setCouple(coupleDoc || (cId === DEMO_COUPLE.coupleId ? DEMO_COUPLE : null));
     } else {
       setCouple(null);
     }
@@ -235,20 +244,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'Este usuario ya está vinculado a otra pareja.' };
     }
 
-    // Link in Firestore
+    // Link in Firestore and Local Storage
     const newCouple = await financeService.linkCouple(user, partnerProfile);
     
-    // Update local state
+    // Update local state and persistent storage
     const updatedUser: UserProfile = {
       ...user,
       partnerId: partnerProfile.uid,
       coupleId: newCouple.coupleId
     };
+    const updatedPartner: UserProfile = {
+      ...partnerProfile,
+      partnerId: user.uid,
+      coupleId: newCouple.coupleId
+    };
+
     setUser(updatedUser);
-    setPartner(partnerProfile);
+    setPartner(updatedPartner);
     setCouple(newCouple);
 
-    return { success: true, message: `¡Felicidades! Te has vinculado exitosamente con ${partnerProfile.displayName}.` };
+    financeService.saveLocalUser(updatedUser);
+    financeService.saveLocalUser(updatedPartner);
+    financeService.saveLocalCouple(newCouple);
+
+    return { success: true, message: `¡Felicidades! Te has vinculado exitosamente con ${updatedPartner.displayName}.` };
   };
 
   const updatePartnerName = async (newName: string) => {
