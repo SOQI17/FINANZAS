@@ -15,6 +15,8 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { TransactionModal } from './modals/TransactionModal';
+import { TransactionDetailsModal } from './modals/TransactionDetailsModal';
+import { Transaction } from '../types';
 
 import { getSplitBadgeText } from '../utils/splitUtils';
 
@@ -26,6 +28,7 @@ export const TransactionsView: React.FC = () => {
   const [selectedType, setSelectedType] = useState<'all' | 'income' | 'expense'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedDetailsTx, setSelectedDetailsTx] = useState<Transaction | null>(null);
 
   // Filter list
   const txList = filteredTransactions.filter(tx => {
@@ -150,18 +153,24 @@ export const TransactionsView: React.FC = () => {
               : (tx.userName || 'Pareja');
 
             return (
-              <div key={tx.transactionId} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-800/40 transition">
+              <div
+                key={tx.transactionId}
+                onClick={() => setSelectedDetailsTx(tx)}
+                className="p-4 flex items-center justify-between gap-4 hover:bg-slate-800/60 transition cursor-pointer group"
+              >
                 <div className="flex items-center gap-3.5">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition ${
                     tx.type === 'income'
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:scale-105'
+                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 group-hover:scale-105'
                   }`}>
                     {tx.type === 'income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                   </div>
 
                   <div>
-                    <h4 className="font-bold text-sm sm:text-base text-white">{tx.description}</h4>
+                    <h4 className="font-bold text-sm sm:text-base text-white group-hover:text-pink-300 transition flex items-center gap-1.5">
+                      <span>{tx.description}</span>
+                    </h4>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-0.5">
                       <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300 font-medium">
                         {tx.category}
@@ -178,29 +187,30 @@ export const TransactionsView: React.FC = () => {
                   </div>
                 </div>
 
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className={`font-extrabold text-sm sm:text-base ${tx.type === 'income' ? 'text-emerald-400' : 'text-slate-100'}`}>
-                    {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className={`font-extrabold text-sm sm:text-base ${tx.type === 'income' ? 'text-emerald-400' : 'text-slate-100'}`}>
+                      {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
+                    </div>
+                    <div className="text-[10px] text-pink-400 font-bold capitalize">Ver Desglose 👁️</div>
                   </div>
-                  <div className="text-[10px] text-slate-500 capitalize">{tx.scope}</div>
-                </div>
 
-                <button
-                  onClick={() => {
-                    if (confirm('¿Deseas eliminar este movimiento?')) {
-                      deleteTransaction(tx.transactionId);
-                    }
-                  }}
-                  className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
-                  title="Eliminar movimiento"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('¿Deseas eliminar este movimiento?')) {
+                        deleteTransaction(tx.transactionId);
+                      }
+                    }}
+                    className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                    title="Eliminar movimiento"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
           {txList.length === 0 && (
             <div className="text-center py-12 text-slate-500 space-y-2">
@@ -212,6 +222,14 @@ export const TransactionsView: React.FC = () => {
       </div>
 
       {showAddModal && <TransactionModal onClose={() => setShowAddModal(false)} />}
+
+      {selectedDetailsTx && (
+        <TransactionDetailsModal
+          tx={selectedDetailsTx}
+          onClose={() => setSelectedDetailsTx(null)}
+          onDelete={(id) => deleteTransaction(id)}
+        />
+      )}
     </div>
   );
 };
