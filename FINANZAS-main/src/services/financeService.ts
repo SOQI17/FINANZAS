@@ -197,7 +197,7 @@ export const financeService = {
           }
         }
       } catch (e) {
-        console.warn('Firestore query failed or blocked by client:', e);
+        // Silently fall back to local cache if network/permission error
       }
     }
 
@@ -241,7 +241,7 @@ export const financeService = {
         await updateDoc(doc(db, 'users', user1.uid), { partnerId: partner.uid, coupleId });
         await updateDoc(doc(db, 'users', partner.uid), { partnerId: user1.uid, coupleId });
       } catch (e) {
-        console.error('Error linking couple in Firestore:', e);
+        // Silently fall back locally
       }
     }
 
@@ -334,12 +334,10 @@ export const financeService = {
         combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         callback(combined);
       }, (error) => {
-        console.warn('Firestore transactions listener error:', error);
-        // DO NOT wipe out state on network/adblocker error! Keep local state intact!
+        // Keep local state intact on error
         callback(getLocalTransactions());
       });
     } catch (e) {
-      console.warn('Firestore subscribe error:', e);
       callback(getLocalTransactions());
       return () => {};
     }
