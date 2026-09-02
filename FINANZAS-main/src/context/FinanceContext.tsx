@@ -97,12 +97,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return true;
       }
       if (activeScope === 'individual') {
-        return t.scope === 'individual' || t.userId === user?.uid || t.paidBy === user?.uid;
+        // In Mis Finanzas, ONLY show expenses paid by this user (exclude expenses paid by partner)
+        if (partner?.uid && t.paidBy === partner.uid) {
+          return false;
+        }
+        if (partner?.displayName && t.userName && t.userName.toLowerCase().includes(partner.displayName.toLowerCase())) {
+          return false;
+        }
+        return true;
       } else {
+        // In En Pareja, show all shared expenses paid by both
         return t.scope === 'shared';
       }
     });
-  }, [rawTransactions, activeScope, user]);
+  }, [rawTransactions, activeScope, user, partner]);
 
   // Unified accounts list with dynamic balance calculation (only subtract expenses paid out of pocket by user & approved)
   const filteredAccounts = useMemo(() => {
