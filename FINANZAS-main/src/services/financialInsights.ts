@@ -172,12 +172,15 @@ export function calculateSharedDebtBalance(
       let karlaRatio = 0.5;
 
       if (t.splitRatioUser1 !== undefined && t.splitRatioUser2 !== undefined) {
-        if (isU1Alexis) {
+        const creatorClean = (t.userName || t.paidBy || '').toLowerCase();
+        const isCreatorAlexis = creatorClean.includes('alexis');
+
+        if (isCreatorAlexis) {
           alexisRatio = t.splitRatioUser1;
           karlaRatio = t.splitRatioUser2;
         } else {
-          alexisRatio = t.splitRatioUser2;
           karlaRatio = t.splitRatioUser1;
+          alexisRatio = t.splitRatioUser2;
         }
       } else if (t.splitMethod === '60_40') {
         alexisRatio = 0.4;
