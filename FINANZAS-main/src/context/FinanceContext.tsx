@@ -151,8 +151,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const isAlexisOrKarlitaOrDemo = useMemo(() => {
     if (isDemoMode) return true;
-    const email = (user?.email || '').toLowerCase();
-    const name = (user?.displayName || '').toLowerCase();
+    if (!user) return false;
+    const email = (user.email || '').toLowerCase();
+    const name = (user.displayName || '').toLowerCase();
 
     const isRealAlexis = email.includes('alexis') || (name.includes('alexis') && !email.includes('@'));
     const isRealKarlita = email.includes('karlita') || (name.includes('karlita') && !email.includes('@'));
@@ -162,8 +163,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Unified accounts list with dynamic balance calculation (only subtract expenses paid out of pocket by user & approved)
   const filteredAccounts = useMemo(() => {
-    if (rawAccounts.length === 0 && !isAlexisOrKarlitaOrDemo) {
-      return [];
+    if (!isAlexisOrKarlitaOrDemo) {
+      return rawAccounts.map(acc => {
+        const accTxs = rawTransactions.filter(t => t.accountId === acc.accountId);
+        const incomeSum = accTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+        const expenseSum = accTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+        return {
+          ...acc,
+          balance: Math.max(0, (acc.balance || 0) + incomeSum - expenseSum),
+        };
+      });
     }
 
     const baseList = rawAccounts.length > 0
