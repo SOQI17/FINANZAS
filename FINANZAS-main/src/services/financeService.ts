@@ -133,6 +133,30 @@ function getLocalCouple(coupleId: string): Couple | null {
   }
 }
 
+function migrateLocalTransactionsToUser(newUid: string, displayName?: string): void {
+  try {
+    const raw = localStorage.getItem('duofinanzas_local_transactions');
+    if (!raw) return;
+    const txs: Transaction[] = JSON.parse(raw);
+    let changed = false;
+    txs.forEach(t => {
+      if (t.userId === 'user_1' || t.userId === 'user_2' || !t.userId) {
+        t.userId = newUid;
+        if (displayName) t.userName = displayName;
+        changed = true;
+        if (auth.currentUser) {
+          setDoc(doc(db, 'transactions', t.transactionId), t, { merge: true }).catch(() => {});
+        }
+      }
+    });
+    if (changed) {
+      localStorage.setItem('duofinanzas_local_transactions', JSON.stringify(txs));
+    }
+  } catch (e) {
+    // Ignore
+  }
+}
+
 export const financeService = {
   saveLocalUser,
   saveLocalTransaction,
@@ -140,6 +164,7 @@ export const financeService = {
   deleteLocalTransaction,
   saveLocalCouple,
   getLocalCouple,
+  migrateLocalTransactionsToUser,
 
   // --- USERS ---
   async getUserProfile(uid: string): Promise<UserProfile | null> {
