@@ -58,22 +58,46 @@ export const financeService = {
   },
 
   async findUserByInviteCode(inviteCode: string): Promise<UserProfile | null> {
-    if (!auth.currentUser) {
-      if (inviteCode.trim().toUpperCase() === DEMO_USER_2.inviteCode) return DEMO_USER_2;
-      if (inviteCode.trim().toUpperCase() === DEMO_USER_1.inviteCode) return DEMO_USER_1;
-      return null;
+    const rawClean = inviteCode.trim().toUpperCase();
+    if (!rawClean) return null;
+
+    const clean = rawClean.replace(/[^A-Z0-9-]/g, '');
+    const withPrefix = clean.startsWith('PAREJA-') ? clean : `PAREJA-${clean}`;
+    const withoutPrefix = clean.replace(/^PAREJA-/, '');
+
+    // Demo Account Check
+    if (
+      rawClean === DEMO_USER_1.inviteCode ||
+      withPrefix === DEMO_USER_1.inviteCode ||
+      withoutPrefix === DEMO_USER_1.inviteCode.replace('PAREJA-', '')
+    ) {
+      return DEMO_USER_1;
     }
+    if (
+      rawClean === DEMO_USER_2.inviteCode ||
+      withPrefix === DEMO_USER_2.inviteCode ||
+      withoutPrefix === DEMO_USER_2.inviteCode.replace('PAREJA-', '')
+    ) {
+      return DEMO_USER_2;
+    }
+
+    if (!auth.currentUser) return null;
+
     try {
-      const q = query(collection(db, 'users'), where('inviteCode', '==', inviteCode.trim().toUpperCase()));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        return snap.docs[0].data() as UserProfile;
+      const candidates = Array.from(new Set([withPrefix, rawClean, clean, withoutPrefix]));
+
+      for (const code of candidates) {
+        if (!code) continue;
+        const q = query(collection(db, 'users'), where('inviteCode', '==', code));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          return snap.docs[0].data() as UserProfile;
+        }
       }
     } catch (e) {
-      // Silently fall back
+      console.error('Error in findUserByInviteCode:', e);
     }
-    if (inviteCode.trim().toUpperCase() === DEMO_USER_2.inviteCode) return DEMO_USER_2;
-    if (inviteCode.trim().toUpperCase() === DEMO_USER_1.inviteCode) return DEMO_USER_1;
+
     return null;
   },
 

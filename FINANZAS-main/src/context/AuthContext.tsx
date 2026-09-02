@@ -216,7 +216,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const linkPartnerWithCode = async (code: string): Promise<{ success: boolean; message: string }> => {
     if (!user) return { success: false, message: 'Usuario no autenticado' };
 
-    if (code.trim().toUpperCase() === user.inviteCode) {
+    const rawClean = code.trim().toUpperCase();
+    const clean = rawClean.replace(/[^A-Z0-9-]/g, '');
+    const withPrefix = clean.startsWith('PAREJA-') ? clean : `PAREJA-${clean}`;
+    const userInviteClean = user.inviteCode.trim().toUpperCase();
+
+    if (rawClean === userInviteClean || withPrefix === userInviteClean) {
       return { success: false, message: 'No puedes vincular tu propio código de invitación.' };
     }
 
