@@ -13,6 +13,7 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { AccountModal } from './modals/AccountModal';
+import { FixedDepositCalculator } from './FixedDepositCalculator';
 
 export const AccountsView: React.FC = () => {
   const { accounts, deleteAccount, activeScope } = useFinance();
@@ -82,6 +83,9 @@ export const AccountsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Fixed Deposit / Póliza 5.25% Investment Yield Calculator */}
+      <FixedDepositCalculator />
 
       {/* Account Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
