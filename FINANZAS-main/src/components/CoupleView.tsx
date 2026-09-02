@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useFinance } from '../context/FinanceContext';
 import { SettleDebtModal } from './modals/SettleDebtModal';
+import { PendingApprovalBanner } from './PendingApprovalBanner';
 
 export const CoupleView: React.FC = () => {
   const { user, partner, couple, linkPartnerWithCode, updatePartnerName, unlinkPartner } = useAuth();
@@ -89,6 +90,8 @@ export const CoupleView: React.FC = () => {
           </p>
         </div>
       </div>
+
+      <PendingApprovalBanner />
 
       {/* Couple Relationship Status Card */}
       <div className="bg-slate-900/90 p-6 rounded-2xl border border-slate-800 shadow-lg">

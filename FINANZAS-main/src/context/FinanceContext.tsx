@@ -28,6 +28,8 @@ interface FinanceContextType {
   sharedDebt: SharedDebtBalance;
   addTransaction: (tx: Omit<Transaction, 'transactionId' | 'createdAt'>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  approveTransaction: (id: string) => Promise<void>;
+  rejectTransaction: (id: string) => Promise<void>;
   addAccount: (acc: Omit<BankAccount, 'accountId' | 'createdAt'>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
   saveBudget: (budget: Omit<Budget, 'budgetId' | 'createdAt'>) => Promise<void>;
@@ -230,6 +232,30 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const approveTransaction = async (id: string) => {
+    setRawTransactions(prev =>
+      prev.map(t => (t.transactionId === id ? { ...t, approvalStatus: 'approved' } : t))
+    );
+    if (!isDemoMode && auth.currentUser) {
+      try {
+        await updateDoc(doc(db, 'transactions', id), { approvalStatus: 'approved' });
+      } catch (err) {
+        console.warn('Could not approve transaction in Firestore:', err);
+      }
+    }
+  };
+
+  const rejectTransaction = async (id: string) => {
+    setRawTransactions(prev => prev.filter(t => t.transactionId !== id));
+    if (!isDemoMode) {
+      try {
+        await financeService.deleteTransaction(id);
+      } catch (err) {
+        console.warn('Could not reject transaction in Firestore:', err);
+      }
+    }
+  };
+
   const addAccount = async (accData: Omit<BankAccount, 'accountId' | 'createdAt'>) => {
     const newAcc: BankAccount = {
       ...accData,
@@ -334,6 +360,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         sharedDebt,
         addTransaction,
         deleteTransaction,
+        approveTransaction,
+        rejectTransaction,
         addAccount,
         deleteAccount,
         saveBudget,

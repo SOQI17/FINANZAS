@@ -16,6 +16,8 @@ import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { TransactionModal } from './modals/TransactionModal';
 
+import { getSplitBadgeText } from '../utils/splitUtils';
+
 export const TransactionsView: React.FC = () => {
   const { filteredTransactions, deleteTransaction, activeScope } = useFinance();
   const { user, partner } = useAuth();
@@ -169,7 +171,7 @@ export const TransactionsView: React.FC = () => {
                       </span>
                       {tx.scope === 'shared' && (
                         <span className="px-1.5 py-0.5 bg-pink-500/10 text-pink-400 rounded text-[10px] font-semibold border border-pink-500/20">
-                          Pagado por {payerName} ({tx.splitMethod === '50_50' ? 'División 50/50' : 'Especial'})
+                          Pagado por {payerName} ({getSplitBadgeText(tx)})
                         </span>
                       )}
                     </div>

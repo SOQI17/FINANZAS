@@ -53,6 +53,8 @@ export interface Transaction {
   splitRatioUser1?: number; // 0.5 for 50/50
   splitRatioUser2?: number; // 0.5 for 50/50
   accountId?: string | null;
+  approvalStatus?: 'approved' | 'pending' | 'rejected';
+  requestedBy?: string;
   createdAt: string;
 }
 

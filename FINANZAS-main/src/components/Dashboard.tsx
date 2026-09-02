@@ -36,6 +36,8 @@ interface DashboardProps {
   onNavigateToTab?: (tab: 'transactions' | 'insights' | 'couple') => void;
 }
 
+import { getSplitBadgeText } from '../utils/splitUtils';
+
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
   const { user, partner, couple } = useAuth();
   const { activeScope, metrics, filteredTransactions, insights, sharedDebt, selectedPeriod, setSelectedPeriod } = useFinance();
@@ -102,6 +104,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
           </button>
         </div>
       </div>
+
+      {/* Pending Partner Approval Warning Banner */}
+      <PendingApprovalBanner />
 
       {/* Shared Debt Banner ("¿Quién le debe a quién?") */}
       {(activeScope === 'shared' || couple) && (
@@ -374,7 +379,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
                       <span>{tx.date}</span>
                       {tx.scope === 'shared' && (
                         <span className="px-1.5 py-0.2 bg-pink-50 text-pink-700 text-[10px] rounded border border-pink-200 font-semibold">
-                          Pagado por {payerName}
+                          Pagado por {payerName} ({getSplitBadgeText(tx)})
                         </span>
                       )}
                     </div>

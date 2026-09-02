@@ -111,6 +111,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
       splitRatioUser1,
       splitRatioUser2,
       accountId: accountId || null,
+      approvalStatus: isPartnerPayer ? 'pending' : 'approved',
+      requestedBy: user?.uid,
     });
 
     if (date) {
