@@ -34,7 +34,9 @@ const SPLIT_OPTIONS_LIST: { id: SplitMethod; label: string; desc: string; icon: 
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, initialType }) => {
   const { user, partner, couple } = useAuth();
-  const { addTransaction, accounts, activeScope, setSelectedPeriod } = useFinance();
+  const partnerDisplayName = (partner?.displayName && partner.displayName !== user?.displayName)
+    ? partner.displayName
+    : (user?.displayName?.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : (user?.displayName?.toLowerCase().includes('karla') ? 'Alexis Guerra' : 'Pareja'));
 
   const [type, setType] = useState<TransactionType>(initialType || 'expense');
   const [scope, setScope] = useState<FinancialScope>(activeScope);
@@ -425,7 +427,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
                   />
                   <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 px-0.5">
                     <span className="text-emerald-400">👤 Tú: {userPercent}%</span>
-                    <span className="text-pink-400">❤️ {partner ? partner.displayName : 'Pareja'}: {partnerPercent}%</span>
+                    <span className="text-pink-400">❤️ {partnerDisplayName}: {partnerPercent}%</span>
                   </div>
                 </div>
               )}
@@ -445,7 +447,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
                   </div>
 
                   <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
-                    <div className="text-[10px] text-slate-400 font-semibold">Cuota {partner ? partner.displayName : 'Pareja'} ({partnerPercent}%):</div>
+                    <div className="text-[10px] text-slate-400 font-semibold">Cuota {partnerDisplayName} ({partnerPercent}%):</div>
                     <div className="text-base font-black text-pink-400 mt-0.5">
                       ${partnerShareAmount.toFixed(2)}
                     </div>
