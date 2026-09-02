@@ -27,6 +27,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<void>;
   signOutUser: () => Promise<void>;
   linkPartnerWithCode: (code: string) => Promise<{ success: boolean; message: string }>;
+  updatePartnerName: (newName: string) => Promise<void>;
   seedFirestore: () => Promise<void>;
 }
 
@@ -250,6 +251,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true, message: `¡Felicidades! Te has vinculado exitosamente con ${partnerProfile.displayName}.` };
   };
 
+  const updatePartnerName = async (newName: string) => {
+    if (!partner || !newName.trim()) return;
+    const cleanName = newName.trim();
+    const updatedPartner: UserProfile = {
+      ...partner,
+      displayName: cleanName,
+    };
+    setPartner(updatedPartner);
+
+    if (couple) {
+      const isUser1 = couple.user1Id === user?.uid;
+      const updatedCouple: Couple = {
+        ...couple,
+        user1Name: isUser1 ? (user?.displayName || couple.user1Name) : cleanName,
+        user2Name: isUser1 ? cleanName : (user?.displayName || couple.user2Name || ''),
+      };
+      setCouple(updatedCouple);
+    }
+
+    financeService.saveLocalUser(updatedPartner);
+  };
+
   const seedFirestore = async () => {
     if (!user) return;
     setLoading(true);
@@ -272,6 +295,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPassword,
         signOutUser,
         linkPartnerWithCode,
+        updatePartnerName,
         seedFirestore,
       }}
     >

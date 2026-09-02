@@ -10,14 +10,15 @@ import {
   AlertCircle,
   ReceiptText,
   UserPlus,
-  ShieldCheck
+  ShieldCheck,
+  Pencil
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useFinance } from '../context/FinanceContext';
 import { SettleDebtModal } from './modals/SettleDebtModal';
 
 export const CoupleView: React.FC = () => {
-  const { user, partner, couple, linkPartnerWithCode } = useAuth();
+  const { user, partner, couple, linkPartnerWithCode, updatePartnerName } = useAuth();
   const { sharedDebt, filteredTransactions } = useFinance();
 
   const [partnerCodeInput, setPartnerCodeInput] = useState('');
@@ -26,11 +27,20 @@ export const CoupleView: React.FC = () => {
   const [linkResult, setLinkResult] = useState<{ success?: boolean; message?: string }>({});
   const [showSettleModal, setShowSettleModal] = useState(false);
 
+  const [isEditingPartnerName, setIsEditingPartnerName] = useState(false);
+  const [editingName, setEditingName] = useState('');
+
   const copyCode = () => {
     if (!user?.inviteCode) return;
     navigator.clipboard.writeText(user.inviteCode);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleSavePartnerName = async () => {
+    if (!editingName.trim()) return;
+    await updatePartnerName(editingName.trim());
+    setIsEditingPartnerName(false);
   };
 
   const handleLinkPartner = async (e: React.FormEvent) => {
@@ -78,15 +88,51 @@ export const CoupleView: React.FC = () => {
               </div>
 
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-bold text-white">
-                    {user?.displayName} & {partner.displayName}
-                  </h3>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold flex items-center gap-1">
-                    <UserCheck className="w-3 h-3" /> Vinculados
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 mt-0.5">
+                {isEditingPartnerName ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      placeholder="Nombre de tu pareja"
+                      className="bg-slate-950 text-white text-xs px-3 py-1.5 rounded-xl border border-pink-500 outline-none font-bold"
+                    />
+                    <button
+                      onClick={handleSavePartnerName}
+                      className="px-3 py-1.5 bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs rounded-xl transition"
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      onClick={() => setIsEditingPartnerName(false)}
+                      className="px-2.5 py-1.5 text-slate-400 hover:text-white text-xs font-semibold"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-1.5">
+                      <span>{user?.displayName}</span>
+                      <span className="text-slate-400">&</span>
+                      <span className="text-pink-300 font-black">{partner.displayName}</span>
+                    </h3>
+
+                    <button
+                      onClick={() => { setEditingName(partner.displayName); setIsEditingPartnerName(true); }}
+                      className="p-1.5 text-slate-400 hover:text-pink-400 hover:bg-pink-500/10 rounded-lg transition"
+                      title="Personalizar nombre de tu pareja"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold flex items-center gap-1 shrink-0">
+                      <UserCheck className="w-3 h-3" /> Vinculados
+                    </span>
+                  </div>
+                )}
+                
+                <p className="text-xs text-slate-400 mt-1">
                   Pareja activa desde {new Date(couple.createdAt).toLocaleDateString()}
                 </p>
               </div>

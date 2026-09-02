@@ -70,6 +70,8 @@ function getLocalUserByCode(code: string): UserProfile | null {
 }
 
 export const financeService = {
+  saveLocalUser,
+
   // --- USERS ---
   async getUserProfile(uid: string): Promise<UserProfile | null> {
     if (!auth.currentUser) {
