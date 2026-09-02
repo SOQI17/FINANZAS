@@ -259,17 +259,8 @@ export const financeService = {
     const cachedUser = getLocalUserByCode(rawClean);
     if (cachedUser) return cachedUser;
 
-    // Resilient Fallback: If network/adblocker blocks Cloud Firestore, create partner profile so linking NEVER fails
-    const fallbackPartner: UserProfile = {
-      uid: `partner_${Date.now()}`,
-      email: rawClean.includes('@') ? rawClean.toLowerCase() : '',
-      displayName: rawClean.includes('@') ? rawClean.split('@')[0] : `Pareja (${withoutPrefix || 'Vinc.'})`,
-      inviteCode: withPrefix,
-      currency: 'USD',
-      createdAt: new Date().toISOString(),
-    };
-    saveLocalUser(fallbackPartner);
-    return fallbackPartner;
+    // Strict Rule: Return null if no registered user exists
+    return null;
   },
 
   // --- COUPLES ---

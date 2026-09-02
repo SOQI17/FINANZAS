@@ -241,7 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const partnerProfile = await financeService.findUserByInviteCode(code);
     if (!partnerProfile) {
-      return { success: false, message: 'Código de invitación no válido o usuario no encontrado.' };
+      return { success: false, message: 'Usuario no encontrado. Tu pareja debe registrarse primero en la app para poder vincularse.' };
     }
 
     if (partnerProfile.partnerId && partnerProfile.partnerId !== user.uid) {
