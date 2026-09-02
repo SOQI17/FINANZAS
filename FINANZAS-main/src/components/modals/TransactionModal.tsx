@@ -7,6 +7,7 @@ import { getCurrentDateISO, getYesterdayISO } from '../../utils/dateUtils';
 
 interface TransactionModalProps {
   onClose: () => void;
+  initialType?: TransactionType;
 }
 
 const CATEGORY_LIST: { name: string; icon: string }[] = [
@@ -31,11 +32,11 @@ const SPLIT_OPTIONS_LIST: { id: SplitMethod; label: string; desc: string; icon: 
   { id: 'full', label: '100% Pareja', desc: 'Asignar Deuda Total', icon: '🤝' },
 ];
 
-export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) => {
+export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, initialType }) => {
   const { user, partner, couple } = useAuth();
   const { addTransaction, accounts, activeScope, setSelectedPeriod } = useFinance();
 
-  const [type, setType] = useState<TransactionType>('expense');
+  const [type, setType] = useState<TransactionType>(initialType || 'expense');
   const [scope, setScope] = useState<FinancialScope>(activeScope);
   const [amount, setAmount] = useState<string>('');
   const [description, setDescription] = useState<string>('');
@@ -198,6 +199,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                autoFocus
                 required
                 className="w-full bg-slate-950 text-white font-mono text-base pl-9 pr-3 py-2.5 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none"
               />

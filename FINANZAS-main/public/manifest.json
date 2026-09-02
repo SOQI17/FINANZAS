@@ -20,9 +20,25 @@
       "sizes": "180x180"
     }
   ],
-  "start_url": "/",
+  "start_url": "/?utm_source=pwa",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "display": "standalone",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "shortcuts": [
+    {
+      "name": "⚡ Registrar Gasto Rápido",
+      "short_name": "+ Gasto",
+      "description": "Abre el formulario para ingresar un gasto en 1 segundo",
+      "url": "/?action=quickExpense",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "💰 Registrar Ingreso Rápido",
+      "short_name": "+ Ingreso",
+      "description": "Abre el formulario para ingresar un ingreso",
+      "url": "/?action=quickIncome",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }
