@@ -142,8 +142,25 @@ export function calculateSharedDebtBalance(
       const amount = t.amount;
       const paidBy = (t.paidBy || '').toLowerCase();
       const userName = (t.userName || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
 
-      const isAlexisPaid = paidBy.includes('alexis') || userName.includes('alexis') || (isU1Alexis && paidBy === user1Id.toLowerCase()) || (!isU1Alexis && paidBy === user2Id.toLowerCase());
+      let isAlexisPaid = false;
+      let isKarlaPaid = false;
+
+      // Explicit matching by name, description, or UID
+      if (paidBy.includes('alexis') || userName.includes('alexis')) {
+        isAlexisPaid = true;
+      } else if (paidBy.includes('karla') || paidBy.includes('karlita') || userName.includes('karla') || userName.includes('karlita') || desc.includes('renta')) {
+        isKarlaPaid = true;
+      } else {
+        if (isU1Alexis) {
+          if (paidBy === user1Id.toLowerCase()) isAlexisPaid = true;
+          else isKarlaPaid = true;
+        } else {
+          if (paidBy === user1Id.toLowerCase()) isKarlaPaid = true;
+          else isAlexisPaid = true;
+        }
+      }
 
       if (isAlexisPaid) {
         alexisPaidTotal += amount;
