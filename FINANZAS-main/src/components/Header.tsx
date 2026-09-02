@@ -49,20 +49,22 @@ export const Header: React.FC = () => {
         
         {/* Brand Logo */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
-            <Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Suma2 Logo"
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-cover border border-slate-200/80 shadow-xs shrink-0"
+          />
           <div>
             <div className="flex items-center gap-1">
-              <span className="font-bold text-sm sm:text-lg tracking-tight text-slate-900">
-                DuoFinanzas
+              <span className="font-extrabold text-base sm:text-xl tracking-tight text-slate-900 font-sans">
+                Suma2
               </span>
-              <span className="hidden md:inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-                <Flame className="w-3 h-3 text-emerald-600 fill-emerald-600" />
+              <span className="hidden md:inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+                <Flame className="w-3 h-3 text-indigo-600 fill-indigo-600" />
                 Firebase
               </span>
             </div>
-            <p className="text-[10px] sm:text-xs text-slate-500 hidden md:block">Gestión Personal y Pareja</p>
+            <p className="text-[10px] sm:text-xs text-slate-500 hidden md:block">Finanzas en Pareja & Personal</p>
           </div>
         </div>
 

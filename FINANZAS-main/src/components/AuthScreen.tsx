@@ -75,12 +75,14 @@ export const AuthScreen: React.FC = () => {
       {/* Top Brand Bar */}
       <header className="relative z-10 max-w-5xl w-full mx-auto flex items-center justify-between py-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-            <Wallet className="w-6 h-6 text-white" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Suma2 Logo"
+            className="w-10 h-10 rounded-2xl border border-slate-700/80 shadow-lg object-cover"
+          />
           <div>
             <h1 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
-              DuoFinanzas
+              Suma2
               <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                 PRO
               </span>
