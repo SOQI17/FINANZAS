@@ -116,6 +116,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         ));
       }
     }
+  }, [user, partner, isDemoMode, rawTransactions]);
+
   // Auto-seed and sync the 6 shared transactions in Cloud Firestore so all devices (Brave/Safari/Chrome) receive all 6 items
   useEffect(() => {
     if (!user || isDemoMode) return;
