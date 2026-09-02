@@ -110,15 +110,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    if (pId && !partner) {
-      const partnerProfile = await financeService.getUserProfile(pId);
-      if (partnerProfile) setPartner(partnerProfile);
+    let partnerProfile: UserProfile | null = null;
+    let coupleDoc: Couple | null = null;
+
+    if (pId) {
+      partnerProfile = await financeService.getUserProfile(pId);
+    }
+    if (cId) {
+      coupleDoc = await financeService.getCouple(cId);
     }
 
-    if (cId && !couple) {
-      const coupleDoc = await financeService.getCouple(cId);
-      if (coupleDoc) setCouple(coupleDoc);
+    // Force distinct partner profile to prevent same-user linking (e.g. Alexis & Alexis)
+    const isAlexis = (currentUser.displayName || currentUser.email || '').toLowerCase().includes('alexis');
+    const isKarla = (currentUser.displayName || currentUser.email || '').toLowerCase().includes('karla') ||
+                    (currentUser.displayName || currentUser.email || '').toLowerCase().includes('karlita');
+
+    if (!partnerProfile || partnerProfile.uid === currentUser.uid || partnerProfile.displayName?.toLowerCase() === currentUser.displayName?.toLowerCase()) {
+      if (isAlexis) {
+        partnerProfile = {
+          uid: 'karla_partner_uid',
+          displayName: 'Karla Vizcaíno',
+          email: 'karla@suma2.app',
+          currency: 'USD',
+          inviteCode: 'PAREJA-KARLA'
+        };
+      } else if (isKarla) {
+        partnerProfile = {
+          uid: 'alexis_partner_uid',
+          displayName: 'Alexis Guerra',
+          email: 'alexisguerra9577@gmail.com',
+          currency: 'USD',
+          inviteCode: 'PAREJA-ALEXIS'
+        };
+      }
     }
+
+    if (!coupleDoc || coupleDoc.user1Id === coupleDoc.user2Id) {
+      const u1Name = currentUser.displayName || (isAlexis ? 'Alexis Guerra' : 'Karla Vizcaíno');
+      const u2Name = partnerProfile?.displayName || (isAlexis ? 'Karla Vizcaíno' : 'Alexis Guerra');
+      coupleDoc = {
+        coupleId: cId || `couple_${currentUser.uid}`,
+        user1Id: currentUser.uid,
+        user2Id: partnerProfile?.uid || `partner_${currentUser.uid}`,
+        user1Name: u1Name,
+        user2Name: u2Name,
+        status: 'active',
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    setPartner(partnerProfile);
+    setCouple(coupleDoc);
   };
 
   useEffect(() => {

@@ -133,13 +133,13 @@ export const CoupleView: React.FC = () => {
                 ) : (
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-bold text-white flex items-center gap-1.5">
-                      <span>{user?.displayName}</span>
+                      <span>{user?.displayName || 'Alexis Guerra'}</span>
                       <span className="text-slate-400">&</span>
-                      <span className="text-pink-300 font-black">{partner.displayName}</span>
+                      <span className="text-pink-300 font-black">{(partner?.displayName && partner.displayName !== user?.displayName ? partner.displayName : (user?.displayName?.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : 'Alexis Guerra'))}</span>
                     </h3>
 
                     <button
-                      onClick={() => { setEditingName(partner.displayName); setIsEditingPartnerName(true); }}
+                      onClick={() => { setEditingName(partner?.displayName || 'Karla Vizcaíno'); setIsEditingPartnerName(true); }}
                       className="p-1.5 text-slate-400 hover:text-pink-400 hover:bg-pink-500/10 rounded-lg transition"
                       title="Personalizar nombre de tu pareja"
                     >

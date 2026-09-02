@@ -308,7 +308,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
                     }`}
                   >
                     <User className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{user?.displayName || 'Tú'} (Pagó todo)</span>
+                    <span>{user?.displayName || 'Alexis Guerra'} (Pagó todo)</span>
                   </button>
 
                   <button
@@ -321,7 +321,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
                     }`}
                   >
                     <Users className="w-3.5 h-3.5 text-pink-400" />
-                    <span>{partner?.displayName || 'Pareja'} (Pagó todo)</span>
+                    <span>{(partner?.displayName && partner.displayName !== user?.displayName ? partner.displayName : (user?.displayName?.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : 'Alexis Guerra'))} (Pagó todo)</span>
                   </button>
                 </div>
               </div>
