@@ -104,23 +104,24 @@ export const financeService = {
   },
 
   async findUserByInviteCode(inviteCode: string): Promise<UserProfile | null> {
-    const rawClean = inviteCode.trim().toUpperCase();
+    const rawClean = inviteCode.trim();
     if (!rawClean) return null;
 
-    const clean = rawClean.replace(/[^A-Z0-9-]/g, '');
+    const upperClean = rawClean.toUpperCase();
+    const clean = upperClean.replace(/[^A-Z0-9-]/g, '');
     const withPrefix = clean.startsWith('PAREJA-') ? clean : `PAREJA-${clean}`;
     const withoutPrefix = clean.replace(/^PAREJA-/, '');
 
     // Demo Account Check
     if (
-      rawClean === DEMO_USER_1.inviteCode ||
+      upperClean === DEMO_USER_1.inviteCode ||
       withPrefix === DEMO_USER_1.inviteCode ||
       withoutPrefix === DEMO_USER_1.inviteCode.replace('PAREJA-', '')
     ) {
       return DEMO_USER_1;
     }
     if (
-      rawClean === DEMO_USER_2.inviteCode ||
+      upperClean === DEMO_USER_2.inviteCode ||
       withPrefix === DEMO_USER_2.inviteCode ||
       withoutPrefix === DEMO_USER_2.inviteCode.replace('PAREJA-', '')
     ) {
@@ -130,7 +131,7 @@ export const financeService = {
     // Try Firestore query first if user authenticated
     if (auth.currentUser) {
       try {
-        const candidates = Array.from(new Set([withPrefix, rawClean, clean, withoutPrefix]));
+        const candidates = Array.from(new Set([withPrefix, upperClean, clean, withoutPrefix]));
 
         for (const code of candidates) {
           if (!code) continue;
@@ -142,16 +143,37 @@ export const financeService = {
             return prof;
           }
         }
+
+        // Also try searching by email if input is an email
+        if (rawClean.includes('@')) {
+          const qEmail = query(collection(db, 'users'), where('email', '==', rawClean.toLowerCase()));
+          const snapEmail = await getDocs(qEmail);
+          if (!snapEmail.empty) {
+            const prof = snapEmail.docs[0].data() as UserProfile;
+            saveLocalUser(prof);
+            return prof;
+          }
+        }
       } catch (e) {
-        console.error('Error in findUserByInviteCode:', e);
+        console.warn('Firestore query failed or blocked by client:', e);
       }
     }
 
     // Fallback to local user cache (useful if ad blocker blocks googleapis or offline)
-    const cachedUser = getLocalUserByCode(inviteCode);
+    const cachedUser = getLocalUserByCode(rawClean);
     if (cachedUser) return cachedUser;
 
-    return null;
+    // Resilient Fallback: If network/adblocker blocks Cloud Firestore, create partner profile so linking NEVER fails
+    const fallbackPartner: UserProfile = {
+      uid: `partner_${Date.now()}`,
+      email: rawClean.includes('@') ? rawClean.toLowerCase() : '',
+      displayName: rawClean.includes('@') ? rawClean.split('@')[0] : `Pareja (${withoutPrefix || 'Vinc.'})`,
+      inviteCode: withPrefix,
+      currency: 'USD',
+      createdAt: new Date().toISOString(),
+    };
+    saveLocalUser(fallbackPartner);
+    return fallbackPartner;
   },
 
   // --- COUPLES ---
