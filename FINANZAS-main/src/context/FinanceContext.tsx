@@ -106,7 +106,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Unified accounts list with dynamic balance calculation (only subtract expenses paid out of pocket by user & approved)
   const filteredAccounts = useMemo(() => {
-    return rawAccounts.map((acc, idx) => {
+    const baseList = rawAccounts.length > 0 ? rawAccounts : [
+      {
+        accountId: 'default_acc',
+        ownerId: user?.uid || 'user_1',
+        ownerType: 'user' as const,
+        name: 'Cuenta Principal',
+        type: 'checking' as const,
+        balance: 1000,
+        currency: 'USD',
+        createdAt: new Date().toISOString(),
+      }
+    ];
+
+    return baseList.map((acc, idx) => {
       const accTxs = rawTransactions.filter(t =>
         (t.accountId === acc.accountId || (!t.accountId && idx === 0)) &&
         t.approvalStatus !== 'pending' &&
@@ -117,12 +130,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .filter(t => t.type === 'income')
         .reduce((s, t) => s + t.amount, 0);
 
-      // Only subtract expenses that were paid out of pocket by this user
+      // Subtract expenses paid by active user (exclude expenses paid by partner)
       const expenseSum = accTxs
-        .filter(t => t.type === 'expense' && (t.paidBy === user?.uid || t.userId === user?.uid || t.paidBy === 'user_1'))
+        .filter(t => {
+          if (t.type !== 'expense') return false;
+          if (partner?.uid && t.paidBy === partner.uid) return false;
+          if (partner?.displayName && t.userName && t.userName.toLowerCase().includes(partner.displayName.toLowerCase())) return false;
+          return true;
+        })
         .reduce((s, t) => s + t.amount, 0);
 
-      const baseBalance = acc.balance > 0 && acc.balance !== 1000 ? acc.balance : 1000;
+      const baseBalance = 1000;
       const currentBalance = Math.max(0, baseBalance + incomeSum - expenseSum);
 
       return {
@@ -130,7 +148,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         balance: currentBalance,
       };
     });
-  }, [rawAccounts, rawTransactions, user]);
+  }, [rawAccounts, rawTransactions, user, partner]);
 
   // Filter budgets according to active scope
   const filteredBudgets = useMemo(() => {
