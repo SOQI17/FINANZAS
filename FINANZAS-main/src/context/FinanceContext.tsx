@@ -284,18 +284,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
     };
 
-    // Optimistic local state update (0ms instant response)
+    // Optimistic local state update (0ms instant response).
+    // NOTE: we intentionally do NOT touch rawAccounts/balance here. `acc.balance`
+    // is the account's fixed "Saldo Inicial" (opening balance); the *current*
+    // balance is always derived in `filteredAccounts` as opening balance +
+    // income - expenses over `rawTransactions`. Adding the transaction here
+    // is enough to make the derived balance update instantly — mutating
+    // acc.balance too used to double-count every transaction.
     setRawTransactions(prev => [newTx, ...prev.filter(t => t.transactionId !== newTx.transactionId)]);
-    
-    if (newTx.accountId) {
-      setRawAccounts(prev =>
-        prev.map(a =>
-          a.accountId === newTx.accountId
-            ? { ...a, balance: a.balance + (newTx.type === 'income' ? newTx.amount : -newTx.amount) }
-            : a
-        )
-      );
-    }
 
     // Auto-switch scope to transaction scope so it immediately displays
     if (newTx.scope !== activeScope) {
