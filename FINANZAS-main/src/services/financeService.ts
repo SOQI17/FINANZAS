@@ -69,8 +69,48 @@ function getLocalUserByCode(code: string): UserProfile | null {
   return null;
 }
 
+function saveLocalTransaction(tx: Transaction): void {
+  try {
+    const raw = localStorage.getItem('duofinanzas_local_transactions');
+    const txs: Transaction[] = raw ? JSON.parse(raw) : [];
+    const idx = txs.findIndex(t => t.transactionId === tx.transactionId);
+    if (idx >= 0) {
+      txs[idx] = tx;
+    } else {
+      txs.unshift(tx);
+    }
+    localStorage.setItem('duofinanzas_local_transactions', JSON.stringify(txs));
+  } catch (e) {
+    // Ignore
+  }
+}
+
+function getLocalTransactions(): Transaction[] {
+  try {
+    const raw = localStorage.getItem('duofinanzas_local_transactions');
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function deleteLocalTransaction(id: string): void {
+  try {
+    const raw = localStorage.getItem('duofinanzas_local_transactions');
+    if (!raw) return;
+    const txs: Transaction[] = JSON.parse(raw);
+    const filtered = txs.filter(t => t.transactionId !== id);
+    localStorage.setItem('duofinanzas_local_transactions', JSON.stringify(filtered));
+  } catch (e) {
+    // Ignore
+  }
+}
+
 export const financeService = {
   saveLocalUser,
+  saveLocalTransaction,
+  getLocalTransactions,
+  deleteLocalTransaction,
 
   // --- USERS ---
   async getUserProfile(uid: string): Promise<UserProfile | null> {
@@ -263,33 +303,50 @@ export const financeService = {
     coupleId: string | null,
     callback: (txs: Transaction[]) => void
   ) {
-    if (!auth.currentUser) {
-      callback([]);
-      return () => {};
+    // 1. Immediately emit local cached transactions
+    const cached = getLocalTransactions();
+    if (cached.length > 0) {
+      callback(cached);
     }
+
+    if (!auth.currentUser) return () => {};
+
     try {
       const q = query(collection(db, 'transactions'));
       return onSnapshot(q, (snapshot) => {
-        const txs: Transaction[] = [];
+        const remoteTxs: Transaction[] = [];
         snapshot.forEach(docSnap => {
           const t = docSnap.data() as Transaction;
           // Filter according to user, couple, or shared scope
           if (t.userId === userId || (coupleId && t.coupleId === coupleId) || t.scope === 'shared') {
-            txs.push(t);
+            remoteTxs.push(t);
+            saveLocalTransaction(t);
           }
         });
-        txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        callback(txs);
+
+        // Combine local and remote without duplicates
+        const currentLocal = getLocalTransactions();
+        const map = new Map<string, Transaction>();
+        currentLocal.forEach(t => map.set(t.transactionId, t));
+        remoteTxs.forEach(t => map.set(t.transactionId, t));
+
+        const combined = Array.from(map.values());
+        combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        callback(combined);
       }, (error) => {
-        callback([]);
+        console.warn('Firestore transactions listener error:', error);
+        // DO NOT wipe out state on network/adblocker error! Keep local state intact!
+        callback(getLocalTransactions());
       });
     } catch (e) {
-      callback([]);
+      console.warn('Firestore subscribe error:', e);
+      callback(getLocalTransactions());
       return () => {};
     }
   },
 
   async addTransaction(tx: Transaction): Promise<void> {
+    saveLocalTransaction(tx);
     if (!auth.currentUser) return;
     try {
       await setDoc(doc(db, 'transactions', tx.transactionId), tx);
@@ -304,16 +361,17 @@ export const financeService = {
         }
       }
     } catch (e) {
-      // Fall back
+      console.warn('Could not save transaction to Firestore:', e);
     }
   },
 
   async deleteTransaction(transactionId: string): Promise<void> {
+    deleteLocalTransaction(transactionId);
     if (!auth.currentUser) return;
     try {
       await deleteDoc(doc(db, 'transactions', transactionId));
     } catch (e) {
-      // Fall back
+      console.warn('Could not delete transaction from Firestore:', e);
     }
   },
 
