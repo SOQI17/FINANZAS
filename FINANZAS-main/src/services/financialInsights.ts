@@ -122,6 +122,13 @@ export function calculateSharedDebtBalance(
   amountOwed: number;
   isBalanced: boolean;
 } {
+  let cleanU1Name = user1Name || 'Alexis Guerra';
+  let cleanU2Name = user2Name || 'Karla Vizcaíno';
+
+  if (!cleanU2Name || cleanU1Name.toLowerCase() === cleanU2Name.toLowerCase()) {
+    cleanU2Name = cleanU1Name.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : 'Alexis Guerra';
+  }
+
   // Calculate shared expenses paid by user1 vs user2
   let user1PaidTotal = 0;
   let user2PaidTotal = 0;
@@ -215,8 +222,8 @@ export function calculateSharedDebtBalance(
       netAmount: user1Net,
       debtorId: user2Id,
       creditorId: user1Id,
-      debtorName: user2Name,
-      creditorName: user1Name,
+      debtorName: cleanU2Name,
+      creditorName: cleanU1Name,
       amountOwed: user1Net,
       isBalanced: false,
     };
@@ -226,8 +233,8 @@ export function calculateSharedDebtBalance(
       netAmount: user1Net,
       debtorId: user1Id,
       creditorId: user2Id,
-      debtorName: user1Name,
-      creditorName: user2Name,
+      debtorName: cleanU1Name,
+      creditorName: cleanU2Name,
       amountOwed: Math.abs(user1Net),
       isBalanced: false,
     };

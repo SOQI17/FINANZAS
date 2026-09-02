@@ -252,12 +252,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const isKarla = (user?.displayName || user?.email || '').toLowerCase().includes('karla') ||
                     (user?.displayName || user?.email || '').toLowerCase().includes('karlita');
 
-    const fallbackPartnerName = isKarla ? 'Alexis Guerra' : (isAlexis ? 'Karla Vizcaíno' : 'Pareja');
-
     const u1Id = user?.uid || 'user_1';
-    const u1Name = user?.displayName || (isKarla ? 'Karla Vizcaíno' : (isAlexis ? 'Alexis Guerra' : 'Usuario'));
-    const u2Id = partner?.uid || 'partner_1';
-    const u2Name = partner?.displayName || fallbackPartnerName;
+    const u1Name = user?.displayName || (isKarla ? 'Karla Vizcaíno' : 'Alexis Guerra');
+
+    let u2Id = partner?.uid || (u1Id === 'user_1' ? 'user_2' : 'partner_2');
+    if (u2Id === u1Id) {
+      u2Id = `${u1Id}_partner`;
+    }
+
+    let u2Name = partner?.displayName;
+    if (!u2Name || u2Name.toLowerCase() === u1Name.toLowerCase()) {
+      u2Name = u1Name.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : 'Alexis Guerra';
+    }
 
     return calculateSharedDebtBalance(rawTransactions, u1Id, u2Id, u1Name, u2Name);
   }, [rawTransactions, user, partner]);
