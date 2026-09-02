@@ -12,6 +12,8 @@ import { useAuth } from './AuthContext';
 import { financeService } from '../services/financeService';
 import { generateFinancialInsights, calculateSharedDebtBalance } from '../services/financialInsights';
 import { DEMO_ACCOUNTS, DEMO_BUDGETS, DEMO_TRANSACTIONS, DEMO_USER_1, DEMO_USER_2, DEMO_COUPLE } from '../data/demoData';
+import { doc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import { getCurrentPeriod } from '../utils/dateUtils';
 
 interface FinanceContextType {

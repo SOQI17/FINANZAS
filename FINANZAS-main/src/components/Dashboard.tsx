@@ -18,6 +18,7 @@ import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { TransactionModal } from './modals/TransactionModal';
 import { SettleDebtModal } from './modals/SettleDebtModal';
+import { PendingApprovalBanner } from './PendingApprovalBanner';
 import { getAvailablePeriods, formatPeriodLabel } from '../utils/dateUtils';
 
 const CATEGORY_COLORS: Record<string, string> = {
