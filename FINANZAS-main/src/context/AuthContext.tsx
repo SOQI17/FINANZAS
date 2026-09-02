@@ -9,7 +9,7 @@ import {
   signOut,
   User as FirebaseUser
 } from 'firebase/auth';
-import { doc, updateDoc, deleteDoc, deleteField } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, deleteField, collection } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { UserProfile, Couple } from '../types';
 import { financeService, generateInviteCode } from '../services/financeService';
@@ -47,10 +47,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let pId = currentUser.partnerId;
     let cId = currentUser.coupleId;
 
-    if (!pId || !cId) {
-      const localProf = await financeService.getUserProfile(currentUser.uid);
-      if (localProf?.partnerId) pId = localProf.partnerId;
-      if (localProf?.coupleId) cId = localProf.coupleId;
+    // Auto-link Alexis Guerra and Karla Vizcaíno in Cloud Firestore
+    const name = (currentUser.displayName || currentUser.email || '').toLowerCase();
+    const isAlexisOrKarla = name.includes('alexis') || name.includes('karla') || name.includes('karlita');
+
+    if (isAlexisOrKarla) {
+      try {
+        const usersSnap = await getDocs(collection(db, 'users'));
+        let alexisUser: UserProfile | null = null;
+        let karlaUser: UserProfile | null = null;
+
+        usersSnap.forEach(d => {
+          const u = d.data() as UserProfile;
+          const uName = (u.displayName || u.email || '').toLowerCase();
+          if (uName.includes('alexis')) alexisUser = u;
+          if (uName.includes('karla') || uName.includes('karlita')) karlaUser = u;
+        });
+
+        if (alexisUser && karlaUser) {
+          const sharedCoupleId = (alexisUser as UserProfile).coupleId || (karlaUser as UserProfile).coupleId || `couple_alexis_karla`;
+
+          if (currentUser.uid === (alexisUser as UserProfile).uid) {
+            pId = (karlaUser as UserProfile).uid;
+            cId = sharedCoupleId;
+          } else if (currentUser.uid === (karlaUser as UserProfile).uid) {
+            pId = (alexisUser as UserProfile).uid;
+            cId = sharedCoupleId;
+          }
+
+          // Persist linked couple in Firestore
+          const coupleDoc: Couple = {
+            coupleId: sharedCoupleId,
+            user1Id: (alexisUser as UserProfile).uid,
+            user2Id: (karlaUser as UserProfile).uid,
+            user1Name: (alexisUser as UserProfile).displayName || 'Alexis Guerra',
+            user2Name: (karlaUser as UserProfile).displayName || 'Karla Vizcaíno',
+            status: 'active',
+            createdAt: new Date().toISOString(),
+          };
+
+          await setDoc(doc(db, 'couples', sharedCoupleId), coupleDoc, { merge: true });
+          await setDoc(doc(db, 'users', (alexisUser as UserProfile).uid), { partnerId: (karlaUser as UserProfile).uid, coupleId: sharedCoupleId }, { merge: true });
+          await setDoc(doc(db, 'users', (karlaUser as UserProfile).uid), { partnerId: (alexisUser as UserProfile).uid, coupleId: sharedCoupleId }, { merge: true });
+
+          // Tag all shared transactions in Firestore with sharedCoupleId
+          const txSnap = await getDocs(collection(db, 'transactions'));
+          txSnap.forEach(async (tDoc) => {
+            const t = tDoc.data();
+            if (t.scope === 'shared' && t.coupleId !== sharedCoupleId) {
+              await updateDoc(doc(db, 'transactions', tDoc.id), { coupleId: sharedCoupleId });
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Relationship repair:', e);
+      }
     }
 
     if (pId) {
