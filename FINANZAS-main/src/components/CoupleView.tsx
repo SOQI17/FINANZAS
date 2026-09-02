@@ -57,6 +57,16 @@ export const CoupleView: React.FC = () => {
     }
   };
 
+  const displayCouple = couple || (partner && user ? {
+    coupleId: user.coupleId || `couple_${user.uid}`,
+    user1Id: user.uid,
+    user2Id: partner.uid,
+    user1Name: user.displayName,
+    user2Name: partner.displayName,
+    status: 'active' as const,
+    createdAt: new Date().toISOString()
+  } : null);
+
   return (
     <div className="space-y-6">
       
@@ -75,7 +85,7 @@ export const CoupleView: React.FC = () => {
 
       {/* Couple Relationship Status Card */}
       <div className="bg-slate-900/90 p-6 rounded-2xl border border-slate-800 shadow-lg">
-        {couple && partner ? (
+        {displayCouple && partner ? (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="flex -space-x-3">
