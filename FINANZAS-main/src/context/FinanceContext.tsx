@@ -104,10 +104,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [rawTransactions, activeScope, user]);
 
-  // Unified accounts list for accurate total balance liquidity
+  // Unified accounts list with dynamic balance calculation (base balance minus expenses plus incomes)
   const filteredAccounts = useMemo(() => {
-    return rawAccounts;
-  }, [rawAccounts]);
+    return rawAccounts.map((acc, idx) => {
+      const accTxs = rawTransactions.filter(t =>
+        t.accountId === acc.accountId || (!t.accountId && idx === 0)
+      );
+      const incomeSum = accTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+      const expenseSum = accTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+
+      // Base account balance minus net expenses
+      const baseBalance = acc.balance > 0 && acc.balance !== 1000 ? acc.balance : 1000;
+      const currentBalance = Math.max(0, baseBalance + incomeSum - expenseSum);
+
+      return {
+        ...acc,
+        balance: currentBalance,
+      };
+    });
+  }, [rawAccounts, rawTransactions]);
 
   // Filter budgets according to active scope
   const filteredBudgets = useMemo(() => {
