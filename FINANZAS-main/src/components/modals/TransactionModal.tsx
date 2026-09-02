@@ -34,6 +34,7 @@ const SPLIT_OPTIONS_LIST: { id: SplitMethod; label: string; desc: string; icon: 
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, initialType }) => {
   const { user, partner, couple } = useAuth();
+  const { addTransaction, accounts, activeScope, setSelectedPeriod } = useFinance();
   const partnerDisplayName = (partner?.displayName && partner.displayName !== user?.displayName)
     ? partner.displayName
     : (user?.displayName?.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : (user?.displayName?.toLowerCase().includes('karla') ? 'Alexis Guerra' : 'Pareja'));
