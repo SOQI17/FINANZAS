@@ -131,15 +131,33 @@ export function calculateSharedDebtBalance(
   let user2ShareTotal = 0;
 
   transactions
-    .filter(t => t.scope === 'shared' && t.type === 'expense')
+    .filter(t => t.scope === 'shared' && t.type === 'expense' && t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
     .forEach(t => {
       const amount = t.amount;
-      const paidBy = t.paidBy;
+      const paidBy = t.paidBy || '';
 
-      if (paidBy === user1Id) {
+      const u1CleanName = user1Name ? user1Name.toLowerCase() : '';
+      const u2CleanName = user2Name ? user2Name.toLowerCase() : '';
+      const pByClean = paidBy.toLowerCase();
+      const uNameClean = (t.userName || '').toLowerCase();
+
+      const isUser1Paid = paidBy === user1Id ||
+        (u1CleanName && (pByClean.includes(u1CleanName) || uNameClean.includes(u1CleanName))) ||
+        (u1CleanName.includes('alexis') && (pByClean.includes('alexis') || uNameClean.includes('alexis')));
+
+      const isUser2Paid = paidBy === user2Id ||
+        (u2CleanName && (pByClean.includes(u2CleanName) || uNameClean.includes(u2CleanName))) ||
+        (u2CleanName.includes('karla') && (pByClean.includes('karla') || pByClean.includes('karlita') || uNameClean.includes('karla') || uNameClean.includes('karlita')));
+
+      if (isUser1Paid) {
         user1PaidTotal += amount;
-      } else if (paidBy === user2Id) {
+      } else if (isUser2Paid) {
         user2PaidTotal += amount;
+      } else {
+        // Fallback matching
+        if (pByClean.includes('alexis')) user1PaidTotal += amount;
+        else if (pByClean.includes('karla') || pByClean.includes('karlita')) user2PaidTotal += amount;
+        else user1PaidTotal += amount;
       }
 
       // Calculate share responsibility
@@ -151,7 +169,7 @@ export function calculateSharedDebtBalance(
         u2Ratio = t.splitRatioUser2;
       } else if (t.splitMethod === 'full') {
         // paidBy pays, assigned 100% to the other person
-        if (paidBy === user1Id) {
+        if (isUser1Paid) {
           u1Ratio = 0;
           u2Ratio = 1.0;
         } else {
@@ -159,14 +177,14 @@ export function calculateSharedDebtBalance(
           u2Ratio = 0;
         }
       } else if (t.splitMethod === '60_40') {
-        u1Ratio = (paidBy === user1Id) ? 0.6 : 0.4;
-        u2Ratio = (paidBy === user1Id) ? 0.4 : 0.6;
+        u1Ratio = isUser1Paid ? 0.6 : 0.4;
+        u2Ratio = isUser1Paid ? 0.4 : 0.6;
       } else if (t.splitMethod === '70_30') {
-        u1Ratio = (paidBy === user1Id) ? 0.7 : 0.3;
-        u2Ratio = (paidBy === user1Id) ? 0.3 : 0.7;
+        u1Ratio = isUser1Paid ? 0.7 : 0.3;
+        u2Ratio = isUser1Paid ? 0.3 : 0.7;
       } else if (t.splitMethod === '80_20') {
-        u1Ratio = (paidBy === user1Id) ? 0.8 : 0.2;
-        u2Ratio = (paidBy === user1Id) ? 0.2 : 0.8;
+        u1Ratio = isUser1Paid ? 0.8 : 0.2;
+        u2Ratio = isUser1Paid ? 0.2 : 0.8;
       } else if (t.splitMethod === 'custom' || t.splitMethod === 'custom_percentage') {
         u1Ratio = t.splitRatioUser1 ?? 0.5;
         u2Ratio = t.splitRatioUser2 ?? 0.5;
