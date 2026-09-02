@@ -89,9 +89,46 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [user, couple, isDemoMode]);
 
+  // Auto-clean legacy demo transactions for non-Alexis / non-Karlita users
+  useEffect(() => {
+    if (!user || isDemoMode) return;
+    const name = (user.displayName || user.email || '').toLowerCase();
+    const partnerName = (partner?.displayName || partner?.email || '').toLowerCase();
+    const isAlexisOrKarlita = name.includes('alexis') || name.includes('karlita') || partnerName.includes('alexis') || partnerName.includes('karlita');
+
+    if (!isAlexisOrKarlita && rawTransactions.length > 0) {
+      const demoLeaked = rawTransactions.filter(t =>
+        t.transactionId.startsWith('tx_demo_') ||
+        t.description.includes('Renta mes') ||
+        t.description.includes('Mantenimiento Auto') ||
+        t.description.includes('Internet Fibra')
+      );
+
+      if (demoLeaked.length > 0) {
+        demoLeaked.forEach(t => {
+          financeService.deleteTransaction(t.transactionId);
+        });
+        setRawTransactions(prev => prev.filter(t =>
+          !t.transactionId.startsWith('tx_demo_') &&
+          !t.description.includes('Renta mes') &&
+          !t.description.includes('Mantenimiento Auto') &&
+          !t.description.includes('Internet Fibra')
+        ));
+      }
+    }
+  }, [user, partner, isDemoMode, rawTransactions]);
+
   // Filter transactions according to active scope (individual vs shared)
   const filteredTransactions = useMemo(() => {
     return rawTransactions.filter(t => {
+      // Strictly verify ownership: must belong to active user, paid by active user, or belong to active couple!
+      const isMyTx = t.userId === user?.uid || t.paidBy === user?.uid;
+      const isCoupleTx = Boolean(couple?.coupleId && t.coupleId === couple?.coupleId);
+
+      if (!isMyTx && !isCoupleTx && !isDemoMode) {
+        return false;
+      }
+
       // Incomes fund both individual and couple finances
       if (t.type === 'income') {
         return true;
@@ -110,7 +147,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return t.scope === 'shared';
       }
     });
-  }, [rawTransactions, activeScope, user, partner]);
+  }, [rawTransactions, activeScope, user, partner, couple, isDemoMode]);
 
   const isAlexisOrKarlitaOrDemo = useMemo(() => {
     if (isDemoMode) return true;

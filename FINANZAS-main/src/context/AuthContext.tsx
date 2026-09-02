@@ -72,7 +72,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         setIsDemoMode(false);
-        financeService.migrateLocalTransactionsToUser(fbUser.uid, fbUser.displayName || undefined);
 
         const profile = await financeService.getUserProfile(fbUser.uid);
         if (profile) {
@@ -93,6 +92,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setPartner(null);
           setCouple(null);
         }
+      } else {
+        setUser(null);
+        setPartner(null);
+        setCouple(null);
+        setIsDemoMode(false);
       }
       setLoading(false);
     });
