@@ -194,8 +194,8 @@ export const TransactionsView: React.FC = () => {
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {txList.length === 0 && (
             <div className="text-center py-12 text-slate-500 space-y-2">
