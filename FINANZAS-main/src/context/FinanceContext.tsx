@@ -88,8 +88,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Filter transactions according to active scope (individual vs shared)
   const filteredTransactions = useMemo(() => {
     return rawTransactions.filter(t => {
+      // Incomes fund both individual and couple finances
+      if (t.type === 'income') {
+        return true;
+      }
       if (activeScope === 'individual') {
-        // In individual mode, show individual transactions OR transactions created/paid by this user
         return t.scope === 'individual' || t.userId === user?.uid || t.paidBy === user?.uid;
       } else {
         return t.scope === 'shared';
@@ -97,16 +100,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [rawTransactions, activeScope, user]);
 
-  // Filter accounts according to active scope
+  // Unified accounts list for accurate total balance liquidity
   const filteredAccounts = useMemo(() => {
-    return rawAccounts.filter(a => {
-      if (activeScope === 'individual') {
-        return a.ownerType === 'user';
-      } else {
-        return a.ownerType === 'couple';
-      }
-    });
-  }, [rawAccounts, activeScope]);
+    return rawAccounts;
+  }, [rawAccounts]);
 
   // Filter budgets according to active scope
   const filteredBudgets = useMemo(() => {
