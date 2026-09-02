@@ -13,10 +13,12 @@ import {
   User
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
+import { useAuth } from '../context/AuthContext';
 import { TransactionModal } from './modals/TransactionModal';
 
 export const TransactionsView: React.FC = () => {
   const { filteredTransactions, deleteTransaction, activeScope } = useFinance();
+  const { user, partner } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'income' | 'expense'>('all');
