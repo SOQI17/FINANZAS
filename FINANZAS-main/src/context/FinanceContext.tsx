@@ -89,12 +89,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const filteredTransactions = useMemo(() => {
     return rawTransactions.filter(t => {
       if (activeScope === 'individual') {
-        return t.scope === 'individual';
+        // In individual mode, show individual transactions OR transactions created/paid by this user
+        return t.scope === 'individual' || t.userId === user?.uid || t.paidBy === user?.uid;
       } else {
         return t.scope === 'shared';
       }
     });
-  }, [rawTransactions, activeScope]);
+  }, [rawTransactions, activeScope, user]);
 
   // Filter accounts according to active scope
   const filteredAccounts = useMemo(() => {

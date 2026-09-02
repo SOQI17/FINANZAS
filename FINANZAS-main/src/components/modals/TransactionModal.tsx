@@ -49,6 +49,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose }) =
   const [showCategoryOpen, setShowCategoryOpen] = useState(false);
   const [showSplitOpen, setShowSplitOpen] = useState(false);
 
+  useEffect(() => {
+    if (!accountId && accounts.length > 0) {
+      setAccountId(accounts[0].accountId);
+    }
+  }, [accounts, accountId]);
+
   const selectedCategoryObj = CATEGORY_LIST.find(c => c.name === category) || CATEGORY_LIST[0];
   const selectedSplitObj = SPLIT_OPTIONS_LIST.find(s => s.id === splitMethod) || SPLIT_OPTIONS_LIST[0];
 
