@@ -355,9 +355,9 @@ export const financeService = {
         const remoteTxs: Transaction[] = [];
         snapshot.forEach(docSnap => {
           const t = docSnap.data() as Transaction;
-          // Strictly filter: ONLY transactions belonging to this user, paid by this user, or matching the coupleId!
+          // Include if user's own tx, OR if couple's tx, OR if shared tx between linked couple
           const isUserTx = t.userId === userId || t.paidBy === userId;
-          const isCoupleTx = Boolean(coupleId && t.coupleId === coupleId);
+          const isCoupleTx = Boolean(coupleId && (t.coupleId === coupleId || t.scope === 'shared'));
 
           if (isUserTx || isCoupleTx) {
             remoteTxs.push(t);
@@ -369,7 +369,7 @@ export const financeService = {
         const currentLocal = getLocalTransactions(userId);
         const map = new Map<string, Transaction>();
         currentLocal.forEach(t => {
-          if (t.userId === userId || t.paidBy === userId || (coupleId && t.coupleId === coupleId)) {
+          if (t.userId === userId || t.paidBy === userId || (coupleId && (t.coupleId === coupleId || t.scope === 'shared'))) {
             map.set(t.transactionId, t);
           }
         });

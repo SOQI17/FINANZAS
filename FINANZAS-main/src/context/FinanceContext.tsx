@@ -123,7 +123,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return rawTransactions.filter(t => {
       // Strictly verify ownership: must belong to active user, paid by active user, or belong to active couple!
       const isMyTx = t.userId === user?.uid || t.paidBy === user?.uid;
-      const isCoupleTx = Boolean(couple?.coupleId && t.coupleId === couple?.coupleId);
+      const isCoupleTx = Boolean((couple?.coupleId || partner?.uid) && (t.coupleId === couple?.coupleId || t.scope === 'shared'));
 
       if (!isMyTx && !isCoupleTx && !isDemoMode) {
         return false;
