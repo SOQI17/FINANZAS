@@ -26,6 +26,49 @@ export function generateInviteCode(): string {
   return `PAREJA-${code}`;
 }
 
+function saveLocalUser(profile: UserProfile): void {
+  try {
+    const raw = localStorage.getItem('duofinanzas_known_users');
+    const users: UserProfile[] = raw ? JSON.parse(raw) : [];
+    const idx = users.findIndex(u => u.uid === profile.uid || u.inviteCode === profile.inviteCode);
+    if (idx >= 0) {
+      users[idx] = { ...users[idx], ...profile };
+    } else {
+      users.push(profile);
+    }
+    localStorage.setItem('duofinanzas_known_users', JSON.stringify(users));
+  } catch (e) {
+    // Ignore
+  }
+}
+
+function getLocalUserByCode(code: string): UserProfile | null {
+  try {
+    const rawClean = code.trim().toUpperCase();
+    if (!rawClean) return null;
+    const clean = rawClean.replace(/[^A-Z0-9-]/g, '');
+    const withPrefix = clean.startsWith('PAREJA-') ? clean : `PAREJA-${clean}`;
+    const withoutPrefix = clean.replace(/^PAREJA-/, '');
+
+    const candidates = [rawClean, clean, withPrefix, withoutPrefix];
+
+    const raw = localStorage.getItem('duofinanzas_known_users');
+    if (!raw) return null;
+    const users: UserProfile[] = JSON.parse(raw);
+
+    for (const u of users) {
+      if (!u.inviteCode) continue;
+      const uCode = u.inviteCode.trim().toUpperCase();
+      if (candidates.includes(uCode) || candidates.includes(uCode.replace(/^PAREJA-/, ''))) {
+        return u;
+      }
+    }
+  } catch (e) {
+    // Ignore
+  }
+  return null;
+}
+
 export const financeService = {
   // --- USERS ---
   async getUserProfile(uid: string): Promise<UserProfile | null> {
@@ -38,7 +81,9 @@ export const financeService = {
       const docRef = doc(db, 'users', uid);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
-        return snap.data() as UserProfile;
+        const prof = snap.data() as UserProfile;
+        saveLocalUser(prof);
+        return prof;
       }
     } catch (e) {
       // Silently fall back if ad blocker or permission blocks request
@@ -49,6 +94,7 @@ export const financeService = {
   },
 
   async createUserProfile(profile: UserProfile): Promise<void> {
+    saveLocalUser(profile);
     if (!auth.currentUser) return;
     try {
       await setDoc(doc(db, 'users', profile.uid), profile, { merge: true });
@@ -81,22 +127,29 @@ export const financeService = {
       return DEMO_USER_2;
     }
 
-    if (!auth.currentUser) return null;
+    // Try Firestore query first if user authenticated
+    if (auth.currentUser) {
+      try {
+        const candidates = Array.from(new Set([withPrefix, rawClean, clean, withoutPrefix]));
 
-    try {
-      const candidates = Array.from(new Set([withPrefix, rawClean, clean, withoutPrefix]));
-
-      for (const code of candidates) {
-        if (!code) continue;
-        const q = query(collection(db, 'users'), where('inviteCode', '==', code));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          return snap.docs[0].data() as UserProfile;
+        for (const code of candidates) {
+          if (!code) continue;
+          const q = query(collection(db, 'users'), where('inviteCode', '==', code));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const prof = snap.docs[0].data() as UserProfile;
+            saveLocalUser(prof);
+            return prof;
+          }
         }
+      } catch (e) {
+        console.error('Error in findUserByInviteCode:', e);
       }
-    } catch (e) {
-      console.error('Error in findUserByInviteCode:', e);
     }
+
+    // Fallback to local user cache (useful if ad blocker blocks googleapis or offline)
+    const cachedUser = getLocalUserByCode(inviteCode);
+    if (cachedUser) return cachedUser;
 
     return null;
   },
@@ -114,14 +167,17 @@ export const financeService = {
       createdAt: new Date().toISOString(),
     };
 
+    saveLocalUser({ ...user1, partnerId: partner.uid, coupleId });
+    saveLocalUser({ ...partner, partnerId: user1.uid, coupleId });
+
     if (auth.currentUser) {
       try {
         await setDoc(doc(db, 'couples', coupleId), couple);
-        // Update both user profiles
+        // Update both user profiles in Firestore
         await updateDoc(doc(db, 'users', user1.uid), { partnerId: partner.uid, coupleId });
         await updateDoc(doc(db, 'users', partner.uid), { partnerId: user1.uid, coupleId });
       } catch (e) {
-        // Fall back gracefully
+        console.error('Error linking couple in Firestore:', e);
       }
     }
 
