@@ -170,10 +170,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
 
     return scopedAccounts.map((acc, idx) => {
-      // Match transactions belonging to this account, or assign unassigned transactions to primary account (idx === 0)
+      // Match transactions belonging to this account, or assign unlinked transactions to primary account (idx === 0)
       const accTxs = filteredTransactions.filter(t => {
         if (t.approvalStatus === 'pending' || t.approvalStatus === 'rejected') return false;
-        if (t.accountId) return t.accountId === acc.accountId;
+        
+        // If transaction specifies a valid active accountId, match it strictly
+        const isValidAccount = Boolean(t.accountId && rawAccounts.some(a => a.accountId === t.accountId));
+        if (isValidAccount) {
+          return t.accountId === acc.accountId;
+        }
+        
+        // Fallback: assign to primary account (idx === 0) so expenses always deduct from balance
         return idx === 0;
       });
 
