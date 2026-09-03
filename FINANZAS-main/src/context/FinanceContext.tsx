@@ -155,28 +155,54 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return [];
     }
 
+    const currentUserId = user?.uid || '';
+    const currentUserName = (user?.displayName || user?.email || '').toLowerCase();
+    const partnerName = (partner?.displayName || partner?.email || '').toLowerCase();
+    const isAlexis = currentUserName.includes('alexis');
+
     return rawAccounts.map((acc, idx) => {
-      const accTxs = rawTransactions.filter(t =>
-        (t.accountId === acc.accountId || (!t.accountId && idx === 0)) &&
-        t.approvalStatus !== 'pending' &&
-        t.approvalStatus !== 'rejected'
-      );
+      // Match transactions belonging to this account, or assign unassigned transactions to primary account (idx === 0)
+      const accTxs = rawTransactions.filter(t => {
+        if (t.approvalStatus === 'pending' || t.approvalStatus === 'rejected') return false;
+        if (t.accountId) return t.accountId === acc.accountId;
+        return idx === 0;
+      });
 
       const incomeSum = accTxs
         .filter(t => t.type === 'income')
         .reduce((s, t) => s + t.amount, 0);
 
-      // Subtract expenses paid by active user (exclude expenses paid by partner)
+      // Subtract expenses paid by current active user from their bank account
       const expenseSum = accTxs
         .filter(t => {
           if (t.type !== 'expense') return false;
-          if (partner?.uid && t.paidBy === partner.uid) return false;
-          if (partner?.displayName && t.userName && t.userName.toLowerCase().includes(partner.displayName.toLowerCase())) return false;
-          return true;
+
+          const paidByClean = (t.paidBy || t.userName || '').toLowerCase();
+
+          // If current user is Alexis, subtract expenses paid by Alexis
+          if (isAlexis) {
+            if (paidByClean.includes('karla') || paidByClean.includes('karlita')) {
+              return false; // Paid by Karlita
+            }
+            if (t.paidBy && partner?.uid && t.paidBy === partner.uid) {
+              return false; // Paid by Karlita
+            }
+            return true; // Paid by Alexis
+          } else {
+            // If current user is Karlita, subtract expenses paid by Karlita
+            if (paidByClean.includes('alexis')) {
+              return false; // Paid by Alexis
+            }
+            if (t.paidBy && partner?.uid && t.paidBy === partner.uid) {
+              return false; // Paid by Alexis
+            }
+            return true; // Paid by Karlita
+          }
         })
         .reduce((s, t) => s + t.amount, 0);
 
-      const currentBalance = Math.max(0, (acc.balance || 0) + incomeSum - expenseSum);
+      const openingBalance = acc.balance || 0;
+      const currentBalance = openingBalance + incomeSum - expenseSum;
 
       return {
         ...acc,
