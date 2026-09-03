@@ -156,14 +156,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
         {/* Balance Total */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Balance Cuentas</span>
+            <span className="text-xs font-bold uppercase tracking-wider">
+              {activeScope === 'individual' ? 'Balance Personal' : 'Balance Pareja'}
+            </span>
             <Wallet className="w-4 h-4 text-indigo-600" />
           </div>
           <div className="text-2xl sm:text-3xl font-black text-slate-900">
             ${metrics.totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
           <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
-            <span className="text-indigo-600 font-semibold">Disponible</span> en cuentas registradas
+            <span className="text-indigo-600 font-semibold">Disponible</span>{' '}
+            {activeScope === 'individual' ? 'en tus cuentas personales' : 'en cuentas compartidas'}
           </p>
         </div>
 

@@ -160,7 +160,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const partnerName = (partner?.displayName || partner?.email || '').toLowerCase();
     const isAlexis = currentUserName.includes('alexis');
 
-    return rawAccounts.map((acc, idx) => {
+    // Filter accounts by scope: in Mis Finanzas (individual), ONLY show accounts belonging to active user!
+    const scopedAccounts = rawAccounts.filter(acc => {
+      if (activeScope === 'individual') {
+        if (partner?.uid && acc.ownerId === partner.uid) {
+          return false; // Exclude partner's personal account from Mis Finanzas!
+        }
+      }
+      return true;
+    });
+
+    return scopedAccounts.map((acc, idx) => {
       // Match transactions belonging to this account, or assign unassigned transactions to primary account (idx === 0)
       const accTxs = rawTransactions.filter(t => {
         if (t.approvalStatus === 'pending' || t.approvalStatus === 'rejected') return false;

@@ -51,10 +51,12 @@ export const AccountsView: React.FC = () => {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
             <WalletCards className="w-6 h-6 text-emerald-400" />
-            <span>Cuentas y Billeteras</span>
+            <span>{activeScope === 'individual' ? 'Cuentas y Billeteras Personales' : 'Cuentas y Billeteras Compartidas'}</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Administra tus cuentas bancarias y fondos {activeScope === 'individual' ? 'individuales' : 'compartidos en pareja'}
+            {activeScope === 'individual'
+              ? 'Tus fondos y cuentas bancarias personales (excluye cuentas de pareja)'
+              : 'Fondos y cuentas registradas para la pareja'}
           </p>
         </div>
 
@@ -72,13 +74,16 @@ export const AccountsView: React.FC = () => {
         <div className="flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" /> Total Liquidez Disponible
+              <ShieldCheck className="w-3.5 h-3.5" />
+              {activeScope === 'individual' ? 'Total Liquidez Personal' : 'Total Liquidez Compartida (Pareja)'}
             </span>
             <div className="text-3xl sm:text-4xl font-extrabold text-white mt-1">
               ${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-slate-400 mt-1">
-              Suma de {accounts.length} cuenta(s) activa(s) en modo {activeScope === 'individual' ? 'Individual' : 'Pareja'}.
+              {activeScope === 'individual'
+                ? `Suma de tus ${accounts.length} cuenta(s) personales (exclusivas tuyas).`
+                : `Suma de ${accounts.length} cuenta(s) en ámbito de Pareja.`}
             </p>
           </div>
         </div>
