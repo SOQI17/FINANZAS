@@ -155,16 +155,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return [];
     }
 
-    const currentUserId = user?.uid || '';
-    const currentUserName = (user?.displayName || user?.email || '').toLowerCase();
-    const partnerName = (partner?.displayName || partner?.email || '').toLowerCase();
-    const isAlexis = currentUserName.includes('alexis');
+    const partnerId = partner?.uid || '';
 
-    // Filter accounts by scope: in Mis Finanzas (individual), ONLY show accounts belonging to active user!
+    // Filter accounts by scope:
+    // In Mis Finanzas (individual): ONLY show accounts belonging to active user
+    // In En Pareja (shared): show accounts belonging to active user AND linked partner
     const scopedAccounts = rawAccounts.filter(acc => {
       if (activeScope === 'individual') {
-        if (partner?.uid && acc.ownerId === partner.uid) {
-          return false; // Exclude partner's personal account from Mis Finanzas!
+        if (partnerId && acc.ownerId === partnerId) {
+          return false; // Exclude partner's personal account from Mis Finanzas
         }
       }
       return true;
@@ -172,7 +171,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     return scopedAccounts.map((acc, idx) => {
       // Match transactions belonging to this account, or assign unassigned transactions to primary account (idx === 0)
-      const accTxs = rawTransactions.filter(t => {
+      const accTxs = filteredTransactions.filter(t => {
         if (t.approvalStatus === 'pending' || t.approvalStatus === 'rejected') return false;
         if (t.accountId) return t.accountId === acc.accountId;
         return idx === 0;
@@ -182,33 +181,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .filter(t => t.type === 'income')
         .reduce((s, t) => s + t.amount, 0);
 
-      // Subtract expenses paid by current active user from their bank account
       const expenseSum = accTxs
-        .filter(t => {
-          if (t.type !== 'expense') return false;
-
-          const paidByClean = (t.paidBy || t.userName || '').toLowerCase();
-
-          // If current user is Alexis, subtract expenses paid by Alexis
-          if (isAlexis) {
-            if (paidByClean.includes('karla') || paidByClean.includes('karlita')) {
-              return false; // Paid by Karlita
-            }
-            if (t.paidBy && partner?.uid && t.paidBy === partner.uid) {
-              return false; // Paid by Karlita
-            }
-            return true; // Paid by Alexis
-          } else {
-            // If current user is Karlita, subtract expenses paid by Karlita
-            if (paidByClean.includes('alexis')) {
-              return false; // Paid by Alexis
-            }
-            if (t.paidBy && partner?.uid && t.paidBy === partner.uid) {
-              return false; // Paid by Alexis
-            }
-            return true; // Paid by Karlita
-          }
-        })
+        .filter(t => t.type === 'expense')
         .reduce((s, t) => s + t.amount, 0);
 
       const openingBalance = acc.balance || 0;
@@ -219,7 +193,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         balance: currentBalance,
       };
     });
-  }, [rawAccounts, rawTransactions, user, partner]);
+  }, [rawAccounts, filteredTransactions, activeScope, partner]);
 
   // Filter budgets according to active scope
   const filteredBudgets = useMemo(() => {
