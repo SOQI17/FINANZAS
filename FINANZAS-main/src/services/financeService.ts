@@ -5,7 +5,6 @@ import {
   getDocs,
   setDoc,
   addDoc,
-  updateDoc,
   deleteDoc,
   query,
   where,
@@ -386,16 +385,13 @@ export const financeService = {
     if (!auth.currentUser) return;
     try {
       await setDoc(doc(db, 'transactions', tx.transactionId), tx);
-      // Also adjust account balance if accountId is set
-      if (tx.accountId) {
-        const accountRef = doc(db, 'accounts', tx.accountId);
-        const accSnap = await getDoc(accountRef);
-        if (accSnap.exists()) {
-          const currentBal = accSnap.data().balance || 0;
-          const delta = tx.type === 'income' ? tx.amount : -tx.amount;
-          await updateDoc(accountRef, { balance: currentBal + delta });
-        }
-      }
+     // NOTE: we deliberately do NOT adjust accounts/{accountId}.balance here.
+      // `balance` on an account is its fixed "Saldo Inicial" (opening balance);
+      // the current balance is derived client-side (FinanceContext.filteredAccounts)
+      // as opening balance + income - expenses over all transactions. Mutating
+      // the stored balance on every transaction used to double-count it (once
+      // here, once in the derived sum) and left it permanently wrong whenever a
+      // transaction was later deleted or was still pending approval. 
     } catch (e) {
       console.warn('Could not save transaction to Firestore:', e);
     }
