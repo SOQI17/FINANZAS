@@ -1,6 +1,9 @@
 import { Transaction } from '../types';
 
 export function getSplitBadgeText(tx: Transaction): string {
+  if (tx.scope === 'individual') {
+    return '100% Personal';
+  }
   const paidByClean = (tx.paidBy || tx.userName || '').toLowerCase();
   const isAlexisPayer = paidByClean.includes('alexis');
 

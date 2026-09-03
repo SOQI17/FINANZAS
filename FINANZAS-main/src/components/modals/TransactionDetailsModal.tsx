@@ -34,7 +34,15 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
   let alexisRatio = 0.5;
   let karlaRatio = 0.5;
 
-  if (tx.splitRatioUser1 !== undefined && tx.splitRatioUser2 !== undefined) {
+  if (tx.scope === 'individual') {
+    if (isAlexisPaid) {
+      alexisRatio = 1.0;
+      karlaRatio = 0.0;
+    } else {
+      alexisRatio = 0.0;
+      karlaRatio = 1.0;
+    }
+  } else if (tx.splitRatioUser1 !== undefined && tx.splitRatioUser2 !== undefined) {
     if (isAlexisPaid) {
       alexisRatio = tx.splitRatioUser1;
       karlaRatio = tx.splitRatioUser2;
@@ -163,9 +171,9 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
                 </div>
 
                 <p className="text-[10px] text-slate-400 font-medium">
-                  {isAlexisPaid
-                    ? 'Pagó $ ' + tx.amount.toFixed(2) + ' en caja'
-                    : 'Le corresponde abonar'}
+                  {tx.scope === 'individual'
+                    ? (isAlexisPaid ? 'Gasto 100% Personal (Pagado en caja)' : 'Sin cuota (Gasto Personal de Karla)')
+                    : (isAlexisPaid ? 'Pagó $ ' + tx.amount.toFixed(2) + ' en caja' : 'Le corresponde abonar')}
                 </p>
               </div>
 
@@ -183,17 +191,17 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
                 </div>
 
                 <p className="text-[10px] text-slate-400 font-medium">
-                  {!isAlexisPaid
-                    ? 'Pagó $ ' + tx.amount.toFixed(2) + ' en caja'
-                    : 'Le corresponde abonar'}
+                  {tx.scope === 'individual'
+                    ? (!isAlexisPaid ? 'Gasto 100% Personal (Pagado en caja)' : 'Sin cuota (Gasto Personal de Alexis)')
+                    : (!isAlexisPaid ? 'Pagó $ ' + tx.amount.toFixed(2) + ' en caja' : 'Le corresponde abonar')}
                 </p>
               </div>
 
             </div>
           </div>
 
-          {/* Debt Summary Transfer Pill */}
-          {tx.scope === 'shared' && debtAmount > 0 && (
+          {/* Debt Summary Transfer Pill vs Personal Pill */}
+          {tx.scope === 'shared' && debtAmount > 0 ? (
             <div className="p-3.5 bg-gradient-to-r from-pink-950/40 via-slate-950 to-emerald-950/40 rounded-2xl border border-slate-800 flex items-center gap-3 text-xs">
               <ArrowRightLeft className="w-5 h-5 text-amber-400 shrink-0" />
               <div className="text-slate-200">
@@ -202,7 +210,14 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
                 <span className="font-bold text-emerald-300">{payerName}</span> por este gasto.
               </div>
             </div>
-          )}
+          ) : tx.scope === 'individual' ? (
+            <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 flex items-center gap-3 text-xs">
+              <User className="w-5 h-5 text-indigo-400 shrink-0" />
+              <div className="text-slate-300">
+                Gasto 100% Personal de <span className="font-bold text-white">{payerName}</span>. No genera deuda compartida ni afecta el balance de pareja.
+              </div>
+            </div>
+          ) : null}
 
         </div>
 
