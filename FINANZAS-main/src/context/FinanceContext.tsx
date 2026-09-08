@@ -422,7 +422,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     // Create a transaction that records the debt settlement
     const settlementTx: Omit<Transaction, 'transactionId' | 'createdAt'> = {
-      userId: sharedDebt.debtorId || user?.uid || DEMO_USER_1.uid,
+      userId: user?.uid || sharedDebt.debtorId || DEMO_USER_1.uid,
       userName: sharedDebt.debtorName,
       coupleId: couple?.coupleId || DEMO_COUPLE.coupleId,
       scope: 'shared',
@@ -431,8 +431,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       category: 'Saldar Deuda Pareja',
       date: new Date().toISOString().split('T')[0],
       description: `Saldado de deuda de ${sharedDebt.debtorName} a ${sharedDebt.creditorName}`,
-      paidBy: sharedDebt.debtorId || user?.uid || DEMO_USER_1.uid,
-      splitMethod: '50_50',
+      paidBy: sharedDebt.debtorName,
+      splitMethod: 'full',
+      approvalStatus: 'approved',
     };
 
     await addTransaction(settlementTx);

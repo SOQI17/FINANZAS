@@ -137,12 +137,13 @@ export function calculateSharedDebtBalance(
   let karlaShareTotal = 0;
 
   transactions
-    .filter(t => t.scope === 'shared' && t.type === 'expense' && t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
+    .filter(t => t.scope === 'shared' && t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
     .forEach(t => {
       const amount = t.amount;
       const paidBy = (t.paidBy || '').toLowerCase();
       const userName = (t.userName || '').toLowerCase();
       const desc = (t.description || '').toLowerCase();
+      const cat = (t.category || '').toLowerCase();
 
       let isAlexisPaid = false;
       let isKarlaPaid = false;
@@ -161,6 +162,19 @@ export function calculateSharedDebtBalance(
           else isAlexisPaid = true;
         }
       }
+
+      // Check if this is a debt settlement payment!
+      const isSettlement = cat.includes('saldar') || desc.includes('saldado') || desc.includes('settle');
+      if (isSettlement) {
+        if (isAlexisPaid) {
+          alexisPaidTotal += amount;
+        } else {
+          karlaPaidTotal += amount;
+        }
+        return;
+      }
+
+      if (t.type !== 'expense') return;
 
       if (isAlexisPaid) {
         alexisPaidTotal += amount;
