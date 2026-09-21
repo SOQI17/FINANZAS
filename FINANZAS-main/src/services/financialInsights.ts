@@ -135,6 +135,9 @@ export function calculateSharedDebtBalance(
   let karlaPaidTotal = 0;
   let alexisShareTotal = 0;
   let karlaShareTotal = 0;
+  // Tracks money that Karla has already transferred to Alexis (or vice versa) to settle debt
+  let karlaPaidToAlexis = 0;
+  let alexisPaidToKarla = 0;
 
   transactions
     .filter(t => t.scope === 'shared' && t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
@@ -163,15 +166,17 @@ export function calculateSharedDebtBalance(
         }
       }
 
-      // Check if this is a debt settlement payment!
+      // Settlement transactions: track them separately so they reduce the NET debt directly
       const isSettlement = cat.includes('saldar') || desc.includes('saldado') || desc.includes('settle');
       if (isSettlement) {
-        if (isAlexisPaid) {
-          alexisPaidTotal += amount;
-        } else {
-          karlaPaidTotal += amount;
+        if (isKarlaPaid) {
+          // Karla paid Alexis → reduces Karla's debt to Alexis
+          karlaPaidToAlexis += amount;
+        } else if (isAlexisPaid) {
+          // Alexis paid Karla → reduces Alexis's debt to Karla
+          alexisPaidToKarla += amount;
         }
-        return;
+        return; // Don't count settlement in normal paid/share totals
       }
 
       if (t.type !== 'expense') return;
@@ -219,8 +224,13 @@ export function calculateSharedDebtBalance(
       karlaShareTotal += amount * karlaRatio;
     });
 
+  // alexisNet > 0 means Alexis paid more than his share → Karla owes Alexis
+  // alexisNet < 0 means Karla paid more than her share → Alexis owes Karla
   const alexisNet = alexisPaidTotal - alexisShareTotal;
-  const netOwed = Math.round(alexisNet * 100) / 100;
+
+  // Apply settlements: Karla paying Alexis reduces positive debt, Alexis paying Karla reduces negative debt
+  const adjustedNet = alexisNet - karlaPaidToAlexis + alexisPaidToKarla;
+  const netOwed = Math.round(adjustedNet * 100) / 100;
 
   let debtorId: string | null = null;
   let creditorId: string | null = null;
