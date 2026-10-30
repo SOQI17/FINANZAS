@@ -17,7 +17,7 @@ export const PendingApprovalBanner: React.FC = () => {
     <div className="space-y-3 mb-6">
       {pendingTxs.map(tx => {
         const isTarget = tx.requestedBy ? tx.requestedBy !== user?.uid : true;
-        const requesterName = tx.requestedBy === partner?.uid ? (partner?.displayName || 'Tu pareja') : 'Tu pareja';
+        const requesterName = !isTarget ? 'Tú' : (partner?.displayName || 'Tu pareja');
 
         return (
           <div
@@ -47,6 +47,11 @@ export const PendingApprovalBanner: React.FC = () => {
               </div>
             </div>
 
+            {!isTarget ? (
+              <span className="shrink-0 px-3.5 py-2 bg-slate-800 text-amber-300 font-bold text-xs sm:text-sm rounded-xl border border-amber-500/30">
+                Esperando aprobación de tu pareja
+              </span>
+            ) : (
             <div className="flex items-center gap-2.5 shrink-0 w-full md:w-auto justify-end">
               <button
                 onClick={() => approveTransaction(tx.transactionId)}
@@ -64,6 +69,7 @@ export const PendingApprovalBanner: React.FC = () => {
                 <span>Rechazar</span>
               </button>
             </div>
+            )}
           </div>
         );
       })}

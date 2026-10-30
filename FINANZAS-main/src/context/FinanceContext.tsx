@@ -15,6 +15,9 @@ import { DEMO_ACCOUNTS, DEMO_BUDGETS, DEMO_TRANSACTIONS, DEMO_USER_1, DEMO_USER_
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { getCurrentPeriod } from '../utils/dateUtils';
+import { isAlexisPayer, isSettlementTx } from '../utils/splitUtils';
+
+const MONTH_SHORT_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 interface FinanceContextType {
   activeScope: FinancialScope;
@@ -94,7 +97,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user || isDemoMode) return;
     const name = (user.displayName || user.email || '').toLowerCase();
     const partnerName = (partner?.displayName || partner?.email || '').toLowerCase();
-    const isAlexisOrKarlita = name.includes('alexis') || name.includes('karlita') || partnerName.includes('alexis') || partnerName.includes('karlita');
+    const isAlexisOrKarlita = name.includes('alexis') || name.includes('karla') || partnerName.includes('alexis') || partnerName.includes('karla');
 
     if (!isAlexisOrKarlita && rawTransactions.length > 0) {
       const demoLeaked = rawTransactions.filter(t =>
@@ -184,8 +187,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return idx === 0;
       });
 
+      // A debt settlement is money out for the person who paid it and money in for the one who received it
+      const currentIsAlexis = (user?.displayName || user?.email || '').toLowerCase().includes('alexis');
+      const settlementSum = accTxs
+        .filter(t => isSettlementTx(t))
+        .reduce((s, t) => s + (isAlexisPayer(t) === currentIsAlexis ? -t.amount : t.amount), 0);
+
       const incomeSum = accTxs
-        .filter(t => t.type === 'income')
+        .filter(t => t.type === 'income' && !isSettlementTx(t))
         .reduce((s, t) => s + t.amount, 0);
 
       const expenseSum = accTxs
@@ -193,30 +202,41 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .reduce((s, t) => s + t.amount, 0);
 
       const openingBalance = acc.balance || 0;
-      const currentBalance = openingBalance + incomeSum - expenseSum;
+      const currentBalance = openingBalance + incomeSum - expenseSum + settlementSum;
 
       return {
         ...acc,
         balance: currentBalance,
       };
     });
-  }, [rawAccounts, filteredTransactions, activeScope, partner]);
+  }, [rawAccounts, filteredTransactions, activeScope, partner, user]);
 
-  // Filter budgets according to active scope
+  // Filter budgets according to active scope. Budgets repeat every month, so keep only the
+  // most recent limit per category (older ones from previous months are superseded).
   const filteredBudgets = useMemo(() => {
-    return rawBudgets.filter(b => {
-      if (activeScope === 'individual') {
-        return b.targetType === 'individual';
-      } else {
-        return b.targetType === 'shared';
-      }
-    });
+    const latestByCategory = new Map<string, Budget>();
+    rawBudgets
+      .filter(b => b.targetType === (activeScope === 'individual' ? 'individual' : 'shared'))
+      .forEach(b => {
+        const existing = latestByCategory.get(b.category);
+        if (!existing || (b.createdAt || '') > (existing.createdAt || '')) {
+          latestByCategory.set(b.category, b);
+        }
+      });
+    return Array.from(latestByCategory.values());
   }, [rawBudgets, activeScope]);
+
+  // Approved, non-settlement transactions: the ones that count as real income/expenses in metrics
+  const countedTransactions = useMemo(() => {
+    return filteredTransactions.filter(t =>
+      t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected' && !isSettlementTx(t)
+    );
+  }, [filteredTransactions]);
 
   // Monthly filtered transactions according to selected period (YYYY-MM)
   const periodTransactions = useMemo(() => {
-    return filteredTransactions.filter(t => t.date.startsWith(selectedPeriod));
-  }, [filteredTransactions, selectedPeriod]);
+    return countedTransactions.filter(t => (t.date || '').startsWith(selectedPeriod));
+  }, [countedTransactions, selectedPeriod]);
 
   // Calculate Metrics for Current Period
   const metrics: FinancialMetrics = useMemo(() => {
@@ -239,14 +259,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         expenseByCategory[t.category] = (expenseByCategory[t.category] || 0) + t.amount;
       });
 
-    // Generate monthly trend
-    const periods = ['2026-07', '2026-06', '2026-05'];
-    const monthlyTrend = periods.map(m => {
-      const mTxs = filteredTransactions.filter(t => t.date.startsWith(m));
+    // Generate monthly trend: the selected month and the two before it, oldest first
+    const [selYear, selMonth] = selectedPeriod.split('-').map(Number);
+    const monthlyTrend = [2, 1, 0].map(offset => {
+      const d = new Date(selYear, selMonth - 1 - offset, 1);
+      const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const mTxs = countedTransactions.filter(t => (t.date || '').startsWith(m));
       const inc = mTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
       const exp = mTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
       return {
-        month: m === '2026-07' ? 'Julio' : m === '2026-06' ? 'Junio' : 'Mayo',
+        month: MONTH_SHORT_NAMES[d.getMonth()],
         income: inc,
         expense: exp,
       };
@@ -261,7 +283,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       expenseByCategory,
       monthlyTrend,
     };
-  }, [filteredAccounts, periodTransactions, filteredTransactions]);
+  }, [filteredAccounts, periodTransactions, countedTransactions, selectedPeriod]);
 
   // Calculate Shared Debt Balance
   const sharedDebt: SharedDebtBalance = useMemo(() => {
@@ -390,22 +412,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
     };
 
-    if (isDemoMode) {
-      setRawBudgets(prev => {
-        const filtered = prev.filter(
-          b => !(b.category === newBudget.category && b.targetId === newBudget.targetId && b.period === newBudget.period)
-        );
-        return [...filtered, newBudget];
-      });
-    } else {
+    // A budget repeats every month: the new limit replaces any earlier one for the same category
+    const superseded = rawBudgets.filter(
+      b => b.category === newBudget.category && b.targetId === newBudget.targetId
+    );
+
+    if (!isDemoMode) {
       await financeService.saveBudget(newBudget);
-      setRawBudgets(prev => {
-        const filtered = prev.filter(
-          b => !(b.category === newBudget.category && b.targetId === newBudget.targetId && b.period === newBudget.period)
-        );
-        return [...filtered, newBudget];
-      });
+      for (const b of superseded) {
+        await financeService.deleteBudget(b.budgetId);
+      }
     }
+    setRawBudgets(prev => [
+      ...prev.filter(b => !superseded.some(s => s.budgetId === b.budgetId)),
+      newBudget,
+    ]);
   };
 
   const deleteBudget = async (id: string) => {

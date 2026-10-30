@@ -89,10 +89,14 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
     const uRatio = userPercent / 100;
     const pRatio = partnerPercent / 100;
 
+    // splitRatioUser1 = Alexis's share, splitRatioUser2 = Karla's share
+    const currentName = (user?.displayName || user?.email || '').toLowerCase();
+    const isCurrentKarla = currentName.includes('karla') || currentName.includes('karlita');
+
     let splitRatioUser1 = uRatio;
     let splitRatioUser2 = pRatio;
 
-    if (couple && user?.uid === couple.user2Id) {
+    if (isCurrentKarla) {
       splitRatioUser1 = pRatio;
       splitRatioUser2 = uRatio;
     }

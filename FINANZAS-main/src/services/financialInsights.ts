@@ -1,4 +1,5 @@
 import { Transaction, Budget, FinancialInsight, FinancialMetrics } from '../types';
+import { getMemberRatios, isSettlementTx } from '../utils/splitUtils';
 
 export function generateFinancialInsights(
   transactions: Transaction[],
@@ -154,7 +155,7 @@ export function calculateSharedDebtBalance(
       // Explicit matching by name, description, or UID
       if (paidBy.includes('alexis') || userName.includes('alexis')) {
         isAlexisPaid = true;
-      } else if (paidBy.includes('karla') || paidBy.includes('karlita') || userName.includes('karla') || userName.includes('karlita') || desc.includes('renta')) {
+      } else if (paidBy.includes('karla') || paidBy.includes('karlita') || userName.includes('karla') || userName.includes('karlita')) {
         isKarlaPaid = true;
       } else {
         if (isU1Alexis) {
@@ -167,8 +168,7 @@ export function calculateSharedDebtBalance(
       }
 
       // Settlement transactions: track them separately so they reduce the NET debt directly
-      const isSettlement = cat.includes('saldar') || desc.includes('saldado') || desc.includes('settle');
-      if (isSettlement) {
+      if (isSettlementTx(t)) {
         if (isKarlaPaid) {
           // Karla paid Alexis → reduces Karla's debt to Alexis
           karlaPaidToAlexis += amount;
@@ -187,38 +187,11 @@ export function calculateSharedDebtBalance(
         karlaPaidTotal += amount;
       }
 
-      let alexisRatio = 0.5;
-      let karlaRatio = 0.5;
-
-      if (t.splitRatioUser1 !== undefined && t.splitRatioUser2 !== undefined) {
-        const creatorClean = (t.userName || t.paidBy || '').toLowerCase();
-        const isCreatorAlexis = creatorClean.includes('alexis');
-
-        if (isCreatorAlexis) {
-          alexisRatio = t.splitRatioUser1;
-          karlaRatio = t.splitRatioUser2;
-        } else {
-          karlaRatio = t.splitRatioUser1;
-          alexisRatio = t.splitRatioUser2;
-        }
-      } else if (t.splitMethod === '60_40') {
-        alexisRatio = 0.4;
-        karlaRatio = 0.6;
-      } else if (t.splitMethod === '70_30') {
-        alexisRatio = 0.3;
-        karlaRatio = 0.7;
-      } else if (t.splitMethod === '80_20') {
-        alexisRatio = 0.2;
-        karlaRatio = 0.8;
-      } else if (t.splitMethod === 'full') {
-        if (isAlexisPaid) {
-          alexisRatio = 0;
-          karlaRatio = 1.0;
-        } else {
-          alexisRatio = 1.0;
-          karlaRatio = 0;
-        }
-      }
+      // 'full' depends on who paid, so pass the payer resolved above (which also uses uids)
+      const { alexisRatio, karlaRatio } = getMemberRatios({
+        ...t,
+        userName: isAlexisPaid ? 'alexis' : 'karla',
+      });
 
       alexisShareTotal += amount * alexisRatio;
       karlaShareTotal += amount * karlaRatio;

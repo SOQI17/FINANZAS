@@ -153,7 +153,7 @@ export const CoupleView: React.FC = () => {
                 )}
                 
                 <p className="text-xs text-slate-400 mt-1">
-                  Pareja activa desde {new Date(couple.createdAt).toLocaleDateString()}
+                  Pareja activa desde {new Date(displayCouple.createdAt).toLocaleDateString()}
                 </p>
               </div>
             </div>

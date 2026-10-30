@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Transaction } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { getMemberRatios, isAlexisPayer } from '../../utils/splitUtils';
 
 interface TransactionDetailsModalProps {
   tx: Transaction;
@@ -28,46 +29,8 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
 }) => {
   const { user, partner } = useAuth();
 
-  const paidByClean = (tx.paidBy || tx.userName || '').toLowerCase();
-  const isAlexisPaid = paidByClean.includes('alexis') || (!paidByClean.includes('karla') && !paidByClean.includes('karlita'));
-
-  let alexisRatio = 0.5;
-  let karlaRatio = 0.5;
-
-  if (tx.scope === 'individual') {
-    if (isAlexisPaid) {
-      alexisRatio = 1.0;
-      karlaRatio = 0.0;
-    } else {
-      alexisRatio = 0.0;
-      karlaRatio = 1.0;
-    }
-  } else if (tx.splitRatioUser1 !== undefined && tx.splitRatioUser2 !== undefined) {
-    if (isAlexisPaid) {
-      alexisRatio = tx.splitRatioUser1;
-      karlaRatio = tx.splitRatioUser2;
-    } else {
-      karlaRatio = tx.splitRatioUser1;
-      alexisRatio = tx.splitRatioUser2;
-    }
-  } else if (tx.splitMethod === '60_40') {
-    alexisRatio = 0.4;
-    karlaRatio = 0.6;
-  } else if (tx.splitMethod === '70_30') {
-    alexisRatio = 0.3;
-    karlaRatio = 0.7;
-  } else if (tx.splitMethod === '80_20') {
-    alexisRatio = 0.2;
-    karlaRatio = 0.8;
-  } else if (tx.splitMethod === 'full') {
-    if (isAlexisPaid) {
-      alexisRatio = 0;
-      karlaRatio = 1.0;
-    } else {
-      alexisRatio = 1.0;
-      karlaRatio = 0;
-    }
-  }
+  const isAlexisPaid = isAlexisPayer(tx);
+  const { alexisRatio, karlaRatio } = getMemberRatios(tx);
 
   const alexisAmount = tx.amount * alexisRatio;
   const karlaAmount = tx.amount * karlaRatio;

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { BudgetModal } from './modals/BudgetModal';
+import { formatPeriodLabel } from '../utils/dateUtils';
 
 export const BudgetsView: React.FC = () => {
   const { budgets, filteredTransactions, deleteBudget, activeScope, selectedPeriod } = useFinance();
@@ -18,7 +19,11 @@ export const BudgetsView: React.FC = () => {
   // Compute spend per category in selected period
   const categoryExpenses: Record<string, number> = {};
   filteredTransactions
-    .filter(t => t.type === 'expense' && t.date.startsWith(selectedPeriod))
+    .filter(t =>
+      t.type === 'expense' &&
+      t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected' &&
+      (t.date || '').startsWith(selectedPeriod)
+    )
     .forEach(t => {
       categoryExpenses[t.category] = (categoryExpenses[t.category] || 0) + t.amount;
     });
@@ -34,7 +39,7 @@ export const BudgetsView: React.FC = () => {
             <span>Presupuestos Mensuales</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Control de límites de gasto por categoría ({selectedPeriod})
+            Límites que se repiten cada mes · gasto de {formatPeriodLabel(selectedPeriod)}
           </p>
         </div>
 
