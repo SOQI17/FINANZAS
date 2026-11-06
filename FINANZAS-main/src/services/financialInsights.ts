@@ -190,3 +190,76 @@ export function calculateSharedDebtBalance(
     isBalanced,
   };
 }
+
+export interface SharedDebtBreakdownItem {
+  transaction: Transaction;
+  kind: 'expense' | 'settlement';
+  payerName: string;
+  /** Share of the expense that belongs to the member who did NOT pay it */
+  otherShare: number;
+  /** How much this movement adds to (+) or removes from (-) the current debt */
+  effect: number;
+}
+
+/**
+ * Explains the shared debt movement by movement, using the same rules as
+ * calculateSharedDebtBalance. Effects are expressed in the direction of the current
+ * debt (debtor → creditor), so they add up to amountOwed.
+ */
+export function getSharedDebtBreakdown(
+  transactions: Transaction[],
+  members: CoupleMembers
+): {
+  items: SharedDebtBreakdownItem[];
+  creditorPaidShare: number;
+  debtorPaidShare: number;
+  settlementsTotal: number;
+} {
+  const raw: { tx: Transaction; kind: 'expense' | 'settlement'; aPaid: boolean; otherShare: number; aEffect: number }[] = [];
+
+  transactions
+    .filter(t => t.scope === 'shared' && t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
+    .forEach(t => {
+      const aPaid = isMemberAPayer(t, members);
+      if (isSettlementTx(t)) {
+        // A paying B lowers what B owes A (and vice versa)
+        raw.push({ tx: t, kind: 'settlement', aPaid, otherShare: 0, aEffect: aPaid ? t.amount : -t.amount });
+        return;
+      }
+      if (t.type !== 'expense') return;
+      const { aRatio, bRatio } = getMemberRatios(t, members);
+      const otherShare = t.amount * (aPaid ? bRatio : aRatio);
+      // Positive aEffect = B owes A more
+      raw.push({ tx: t, kind: 'expense', aPaid, otherShare, aEffect: aPaid ? otherShare : -otherShare });
+    });
+
+  const aNet = raw.reduce((s, r) => s + r.aEffect, 0);
+  // Same orientation as calculateSharedDebtBalance: aNet > 0 → B is the debtor
+  const creditorIsA = aNet >= 0;
+  const sign = creditorIsA ? 1 : -1;
+
+  let creditorPaidShare = 0;
+  let debtorPaidShare = 0;
+  let settlementsTotal = 0;
+
+  const items: SharedDebtBreakdownItem[] = raw.map(r => {
+    const effect = r.aEffect * sign;
+    if (r.kind === 'settlement') settlementsTotal += effect;
+    else if (r.aPaid === creditorIsA) creditorPaidShare += effect;
+    else debtorPaidShare += effect;
+    return {
+      transaction: r.tx,
+      kind: r.kind,
+      payerName: r.aPaid ? members.a.name : members.b.name,
+      otherShare: r.otherShare,
+      effect,
+    };
+  });
+
+  items.sort((x, y) =>
+    (y.transaction.date || '').localeCompare(x.transaction.date || '') ||
+    (y.transaction.createdAt || '').localeCompare(x.transaction.createdAt || '')
+  );
+
+  return { items, creditorPaidShare, debtorPaidShare, settlementsTotal };
+}

@@ -11,13 +11,15 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ListChecks
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { TransactionModal } from './modals/TransactionModal';
 import { SettleDebtModal } from './modals/SettleDebtModal';
+import { DebtBreakdownModal } from './modals/DebtBreakdownModal';
 import { PendingApprovalBanner } from './PendingApprovalBanner';
 import { getAvailablePeriods, formatPeriodLabel } from '../utils/dateUtils';
 
@@ -45,6 +47,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
 
   const [showAddTxModal, setShowAddTxModal] = useState(false);
   const [showSettleModal, setShowSettleModal] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   const availablePeriods = getAvailablePeriods();
 
@@ -158,18 +161,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
                   </h3>
                 )}
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Calculado automáticamente según los gastos compartidos del mes.
+                  Calculado según todos los gastos compartidos y pagos de deuda.
                 </p>
               </div>
             </div>
 
             {!sharedDebt.isBalanced && (
-              <button
-                onClick={() => setShowSettleModal(true)}
-                className="px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold text-xs sm:text-sm rounded-xl transition shadow-xs shrink-0"
-              >
-                Saldar Deuda
-              </button>
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <button
+                  onClick={() => setShowBreakdown(true)}
+                  className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm rounded-xl border border-white/20 transition flex items-center gap-1.5"
+                >
+                  <ListChecks className="w-4 h-4" />
+                  Ver desglose
+                </button>
+                <button
+                  onClick={() => setShowSettleModal(true)}
+                  className="px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold text-xs sm:text-sm rounded-xl transition shadow-xs"
+                >
+                  Saldar Deuda
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -432,6 +444,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
 
       {showAddTxModal && <TransactionModal onClose={() => setShowAddTxModal(false)} />}
       {showSettleModal && <SettleDebtModal onClose={() => setShowSettleModal(false)} />}
+      {showBreakdown && <DebtBreakdownModal onClose={() => setShowBreakdown(false)} />}
     </div>
   );
 };
