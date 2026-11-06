@@ -20,6 +20,11 @@ import { Transaction } from '../types';
 
 import { getSplitBadgeText } from '../utils/splitUtils';
 
+const MONTHS = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
 export const TransactionsView: React.FC = () => {
   const { filteredTransactions, deleteTransaction, activeScope, members } = useFinance();
   const { user, partner } = useAuth();
@@ -27,19 +32,43 @@ export const TransactionsView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'income' | 'expense'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedDetailsTx, setSelectedDetailsTx] = useState<Transaction | null>(null);
 
+  // Years present in the data, most recent first
+  const years = Array.from(new Set<string>(filteredTransactions.map(t => (t.date || '').substring(0, 4)).filter(Boolean)))
+    .sort((a, b) => b.localeCompare(a));
+
+  const hasDateFilter = selectedYear !== 'all' || selectedMonth !== 'all' || dateFrom !== '' || dateTo !== '';
+  const clearDateFilters = () => {
+    setSelectedYear('all');
+    setSelectedMonth('all');
+    setDateFrom('');
+    setDateTo('');
+  };
+
   // Filter list
   const txList = filteredTransactions.filter(tx => {
+    const date = tx.date || '';
     const matchesSearch =
       tx.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.category.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = selectedType === 'all' || tx.type === selectedType;
     const matchesCategory = selectedCategory === 'all' || tx.category === selectedCategory;
+    const matchesYear = selectedYear === 'all' || date.startsWith(selectedYear);
+    const matchesMonth = selectedMonth === 'all' || date.substring(5, 7) === selectedMonth;
+    const matchesFrom = !dateFrom || date >= dateFrom;
+    const matchesTo = !dateTo || date <= dateTo;
 
-    return matchesSearch && matchesType && matchesCategory;
+    return matchesSearch && matchesType && matchesCategory && matchesYear && matchesMonth && matchesFrom && matchesTo;
   });
+
+  const listIncome = txList.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const listExpense = txList.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
 
   // Extract unique categories for filter
   const categories = Array.from(new Set(filteredTransactions.map(t => t.category)));
@@ -140,6 +169,77 @@ export const TransactionsView: React.FC = () => {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+
+        {/* Date filters: year, month and a custom range */}
+        <div className="sm:col-span-3 grid grid-cols-2 sm:grid-cols-5 gap-3 pt-3 border-t border-slate-800">
+          <label className="flex flex-col gap-1 text-[11px] font-semibold text-slate-400">
+            Año
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-slate-950 text-slate-200 text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none"
+            >
+              <option value="all">Todos los años</option>
+              {years.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-[11px] font-semibold text-slate-400">
+            Mes
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-slate-950 text-slate-200 text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none"
+            >
+              <option value="all">Todos los meses</option>
+              {MONTHS.map((m, i) => (
+                <option key={m} value={String(i + 1).padStart(2, '0')}>{m}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-[11px] font-semibold text-slate-400">
+            Desde
+            <input
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="bg-slate-950 text-slate-200 text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none [color-scheme:dark]"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-[11px] font-semibold text-slate-400">
+            Hasta
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="bg-slate-950 text-slate-200 text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none [color-scheme:dark]"
+            />
+          </label>
+
+          <div className="col-span-2 sm:col-span-1 flex items-end">
+            <button
+              type="button"
+              onClick={clearDateFilters}
+              disabled={!hasDateFilter}
+              className="w-full px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-slate-700 text-slate-200 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              Limpiar fechas
+            </button>
+          </div>
+        </div>
+
+        {/* Totals of the filtered list */}
+        <div className="sm:col-span-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+          <span>{txList.length} movimiento{txList.length === 1 ? '' : 's'}</span>
+          <span>Ingresos: <strong className="text-emerald-400">+${listIncome.toFixed(2)}</strong></span>
+          <span>Gastos: <strong className="text-rose-400">-${listExpense.toFixed(2)}</strong></span>
+        </div>
       </div>
 
       {/* Transactions Table / Cards */}
