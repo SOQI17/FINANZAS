@@ -1,5 +1,5 @@
 import { Transaction, Budget, FinancialInsight, FinancialMetrics } from '../types';
-import { getMemberRatios, isSettlementTx } from '../utils/splitUtils';
+import { CoupleMembers, getMemberRatios, isMemberAPayer, isSettlementTx } from '../utils/splitUtils';
 
 export function generateFinancialInsights(
   transactions: Transaction[],
@@ -110,10 +110,7 @@ export function generateFinancialInsights(
 
 export function calculateSharedDebtBalance(
   transactions: Transaction[],
-  user1Id: string,
-  user2Id: string,
-  user1Name: string,
-  user2Name: string
+  members: CoupleMembers
 ): {
   netAmount: number;
   debtorId: string | null;
@@ -123,86 +120,42 @@ export function calculateSharedDebtBalance(
   amountOwed: number;
   isBalanced: boolean;
 } {
-  let cleanU1Name = user1Name || 'Alexis Guerra';
-  let cleanU2Name = user2Name || 'Karla Vizcaíno';
-
-  if (!cleanU2Name || cleanU1Name.toLowerCase() === cleanU2Name.toLowerCase()) {
-    cleanU2Name = cleanU1Name.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : 'Alexis Guerra';
-  }
-
-  const isU1Alexis = cleanU1Name.toLowerCase().includes('alexis');
-
-  let alexisPaidTotal = 0;
-  let karlaPaidTotal = 0;
-  let alexisShareTotal = 0;
-  let karlaShareTotal = 0;
-  // Tracks money that Karla has already transferred to Alexis (or vice versa) to settle debt
-  let karlaPaidToAlexis = 0;
-  let alexisPaidToKarla = 0;
+  let aPaidTotal = 0;
+  let aShareTotal = 0;
+  // Money already transferred between members to settle debt
+  let bPaidToA = 0;
+  let aPaidToB = 0;
 
   transactions
     .filter(t => t.scope === 'shared' && t.approvalStatus !== 'pending' && t.approvalStatus !== 'rejected')
     .forEach(t => {
       const amount = t.amount;
-      const paidBy = (t.paidBy || '').toLowerCase();
-      const userName = (t.userName || '').toLowerCase();
-      const desc = (t.description || '').toLowerCase();
-      const cat = (t.category || '').toLowerCase();
-
-      let isAlexisPaid = false;
-      let isKarlaPaid = false;
-
-      // Explicit matching by name, description, or UID
-      if (paidBy.includes('alexis') || userName.includes('alexis')) {
-        isAlexisPaid = true;
-      } else if (paidBy.includes('karla') || paidBy.includes('karlita') || userName.includes('karla') || userName.includes('karlita')) {
-        isKarlaPaid = true;
-      } else {
-        if (isU1Alexis) {
-          if (paidBy === user1Id.toLowerCase()) isAlexisPaid = true;
-          else isKarlaPaid = true;
-        } else {
-          if (paidBy === user1Id.toLowerCase()) isKarlaPaid = true;
-          else isAlexisPaid = true;
-        }
-      }
+      const aPaid = isMemberAPayer(t, members);
 
       // Settlement transactions: track them separately so they reduce the NET debt directly
       if (isSettlementTx(t)) {
-        if (isKarlaPaid) {
-          // Karla paid Alexis → reduces Karla's debt to Alexis
-          karlaPaidToAlexis += amount;
-        } else if (isAlexisPaid) {
-          // Alexis paid Karla → reduces Alexis's debt to Karla
-          alexisPaidToKarla += amount;
+        if (aPaid) {
+          aPaidToB += amount;
+        } else {
+          bPaidToA += amount;
         }
         return; // Don't count settlement in normal paid/share totals
       }
 
       if (t.type !== 'expense') return;
 
-      if (isAlexisPaid) {
-        alexisPaidTotal += amount;
-      } else {
-        karlaPaidTotal += amount;
+      if (aPaid) {
+        aPaidTotal += amount;
       }
-
-      // 'full' depends on who paid, so pass the payer resolved above (which also uses uids)
-      const { alexisRatio, karlaRatio } = getMemberRatios({
-        ...t,
-        userName: isAlexisPaid ? 'alexis' : 'karla',
-      });
-
-      alexisShareTotal += amount * alexisRatio;
-      karlaShareTotal += amount * karlaRatio;
+      aShareTotal += amount * getMemberRatios(t, members).aRatio;
     });
 
-  // alexisNet > 0 means Alexis paid more than his share → Karla owes Alexis
-  // alexisNet < 0 means Karla paid more than her share → Alexis owes Karla
-  const alexisNet = alexisPaidTotal - alexisShareTotal;
+  // aNet > 0 means A paid more than their share → B owes A
+  // aNet < 0 means B paid more than their share → A owes B
+  const aNet = aPaidTotal - aShareTotal;
 
-  // Apply settlements: Karla paying Alexis reduces positive debt, Alexis paying Karla reduces negative debt
-  const adjustedNet = alexisNet - karlaPaidToAlexis + alexisPaidToKarla;
+  // Apply settlements: B paying A reduces positive debt, A paying B reduces negative debt
+  const adjustedNet = aNet - bPaidToA + aPaidToB;
   const netOwed = Math.round(adjustedNet * 100) / 100;
 
   let debtorId: string | null = null;
@@ -214,16 +167,17 @@ export function calculateSharedDebtBalance(
 
   if (Math.abs(netOwed) < 0.01) {
     isBalanced = true;
+    amountOwed = 0;
   } else if (netOwed > 0) {
-    debtorName = 'Karlita';
-    creditorName = 'Alexis Guerra';
-    debtorId = isU1Alexis ? user2Id : user1Id;
-    creditorId = isU1Alexis ? user1Id : user2Id;
+    debtorName = members.b.name;
+    creditorName = members.a.name;
+    debtorId = members.b.id;
+    creditorId = members.a.id;
   } else {
-    debtorName = 'Alexis Guerra';
-    creditorName = 'Karlita';
-    debtorId = isU1Alexis ? user1Id : user2Id;
-    creditorId = isU1Alexis ? user2Id : user1Id;
+    debtorName = members.a.name;
+    creditorName = members.b.name;
+    debtorId = members.a.id;
+    creditorId = members.b.id;
   }
 
   return {

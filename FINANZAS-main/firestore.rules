@@ -1,8 +1,110 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function me() {
+      return request.auth.uid;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    // Two users are partners only when BOTH profiles point to each other
+    function isLinkedPartner(otherId) {
+      return otherId is string
+        && otherId != me()
+        && userDoc(me()).data.get('partnerId', null) == otherId
+        && userDoc(otherId).data.get('partnerId', null) == me();
+    }
+
+    function isCoupleMember(coupleId) {
+      let path = /databases/$(database)/documents/couples/$(coupleId);
+      return exists(path)
+        && (get(path).data.user1Id == me() || get(path).data.user2Id == me());
+    }
+
+    // An account or budget belongs to a user (ownerId/targetId = uid) or to their couple (= coupleId)
+    function ownsTarget(targetId) {
+      return targetId == me() || isCoupleMember(targetId);
+    }
+
+    // A transaction is visible to whoever created or paid it, and shared ones also to the partner
+    function canAccessTransaction(t) {
+      return t.userId == me()
+        || t.paidBy == me()
+        || (t.scope == 'shared' && (isLinkedPartner(t.userId) || isLinkedPartner(t.paidBy)));
+    }
+
+    // --- USERS ---
+    // Profiles are readable by signed-in users so a partner can be found by invite code.
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && uid == me();
+      allow delete: if signedIn() && uid == me();
+      allow update: if signedIn() && (
+        uid == me()
+        // Someone else may only touch partnerId/coupleId, to link or unlink themselves
+        || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['partnerId', 'coupleId'])
+          && (
+            // Linking: the profile has no partner yet (or already has me) and now points to me
+            (request.resource.data.get('partnerId', null) == me()
+              && resource.data.get('partnerId', null) in [null, me()])
+            // Unlinking: I'm their current partner and the link is removed
+            || (resource.data.get('partnerId', null) == me()
+              && request.resource.data.get('partnerId', null) == null)
+          )
+        )
+      );
+    }
+
+    // --- COUPLES ---
+    match /couples/{coupleId} {
+      allow read: if signedIn() && (resource == null || resource.data.user1Id == me() || resource.data.user2Id == me());
+      allow create: if signedIn() && (request.resource.data.user1Id == me() || request.resource.data.user2Id == me());
+      allow update: if signedIn()
+        && (resource.data.user1Id == me() || resource.data.user2Id == me())
+        && (request.resource.data.user1Id == me() || request.resource.data.user2Id == me());
+      allow delete: if signedIn() && (resource.data.user1Id == me() || resource.data.user2Id == me());
+    }
+
+    // --- TRANSACTIONS ---
+    match /transactions/{txId} {
+      allow read: if signedIn() && canAccessTransaction(resource.data);
+      // New transactions are always created in the creator's name
+      allow create: if signedIn() && request.resource.data.userId == me();
+      allow update: if signedIn() && canAccessTransaction(resource.data) && (
+        resource.data.userId == me()
+        // The partner can only approve/reject (and the app may tag the coupleId)
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approvalStatus', 'coupleId'])
+      );
+      allow delete: if signedIn() && canAccessTransaction(resource.data);
+    }
+
+    // --- ACCOUNTS ---
+    match /accounts/{accountId} {
+      allow read: if signedIn() && ownsTarget(resource.data.ownerId);
+      allow create: if signedIn() && ownsTarget(request.resource.data.ownerId);
+      allow update: if signedIn() && ownsTarget(resource.data.ownerId) && ownsTarget(request.resource.data.ownerId);
+      allow delete: if signedIn() && ownsTarget(resource.data.ownerId);
+    }
+
+    // --- BUDGETS ---
+    match /budgets/{budgetId} {
+      allow read: if signedIn() && ownsTarget(resource.data.targetId);
+      allow create: if signedIn() && ownsTarget(request.resource.data.targetId);
+      allow update: if signedIn() && ownsTarget(resource.data.targetId) && ownsTarget(request.resource.data.targetId);
+      allow delete: if signedIn() && ownsTarget(resource.data.targetId);
+    }
+
+    // Everything else is closed
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

@@ -15,7 +15,7 @@ import { DEMO_ACCOUNTS, DEMO_BUDGETS, DEMO_TRANSACTIONS, DEMO_USER_1, DEMO_USER_
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { getCurrentPeriod } from '../utils/dateUtils';
-import { isAlexisPayer, isSettlementTx } from '../utils/splitUtils';
+import { CoupleMembers, getCoupleMembers, isMemberAPayer, isSettlementTx } from '../utils/splitUtils';
 
 const MONTH_SHORT_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -31,6 +31,7 @@ interface FinanceContextType {
   metrics: FinancialMetrics;
   insights: FinancialInsight[];
   sharedDebt: SharedDebtBalance;
+  members: CoupleMembers;
   addTransaction: (tx: Omit<Transaction, 'transactionId' | 'createdAt'>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   approveTransaction: (id: string) => Promise<void>;
@@ -67,6 +68,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const unsubscribe = financeService.subscribeTransactions(
         user.uid,
         couple?.coupleId || null,
+        partner?.uid || null,
         (txs) => setRawTransactions(txs)
       );
 
@@ -90,45 +92,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       loadInitialData();
       return () => unsubscribe();
     }
-  }, [user, couple, isDemoMode]);
+  }, [user, partner, couple, isDemoMode]);
 
-  // Auto-clean legacy demo transactions for non-Alexis / non-Karlita users
-  useEffect(() => {
-    if (!user || isDemoMode) return;
-    const name = (user.displayName || user.email || '').toLowerCase();
-    const partnerName = (partner?.displayName || partner?.email || '').toLowerCase();
-    const isAlexisOrKarlita = name.includes('alexis') || name.includes('karla') || partnerName.includes('alexis') || partnerName.includes('karla');
-
-    if (!isAlexisOrKarlita && rawTransactions.length > 0) {
-      const demoLeaked = rawTransactions.filter(t =>
-        t.transactionId.startsWith('tx_demo_') ||
-        t.description.includes('Renta mes') ||
-        t.description.includes('Mantenimiento Auto') ||
-        t.description.includes('Internet Fibra')
-      );
-
-      if (demoLeaked.length > 0) {
-        demoLeaked.forEach(t => {
-          financeService.deleteTransaction(t.transactionId);
-        });
-        setRawTransactions(prev => prev.filter(t =>
-          !t.transactionId.startsWith('tx_demo_') &&
-          !t.description.includes('Renta mes') &&
-          !t.description.includes('Mantenimiento Auto') &&
-          !t.description.includes('Internet Fibra')
-        ));
-      }
-    }
-  }, [user, partner, isDemoMode, rawTransactions]);
+  // The two members of the couple (or just the user, if they have no partner)
+  const members = useMemo(() => getCoupleMembers(user, partner, couple), [user, partner, couple]);
 
   // Filter transactions according to active scope (individual vs shared)
   const filteredTransactions = useMemo(() => {
+    const partnerId = partner?.uid || '';
     return rawTransactions.filter(t => {
-      // Strictly verify ownership: must belong to active user, paid by active user, or belong to active couple!
+      // Strictly verify ownership: the user's own transactions, or shared ones of their own couple.
+      // A partner's personal transactions and other couples' data are never shown.
       const isMyTx = t.userId === user?.uid || t.paidBy === user?.uid;
-      const isCoupleTx = Boolean((couple?.coupleId || partner?.uid) && (t.coupleId === couple?.coupleId || t.scope === 'shared'));
+      // (matched by member ids, not coupleId: older versions tagged strangers' transactions with a coupleId)
+      const isOurSharedTx = t.scope === 'shared' && Boolean(partnerId) && (
+        t.userId === partnerId ||
+        t.paidBy === partnerId
+      );
 
-      if (!isMyTx && !isCoupleTx && !isDemoMode) {
+      if (!isMyTx && !isOurSharedTx && !isDemoMode) {
         return false;
       }
 
@@ -188,10 +170,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
       // A debt settlement is money out for the person who paid it and money in for the one who received it
-      const currentIsAlexis = (user?.displayName || user?.email || '').toLowerCase().includes('alexis');
+      const currentIsMemberA = members.a.id === user?.uid;
       const settlementSum = accTxs
         .filter(t => isSettlementTx(t))
-        .reduce((s, t) => s + (isAlexisPayer(t) === currentIsAlexis ? -t.amount : t.amount), 0);
+        .reduce((s, t) => s + (isMemberAPayer(t, members) === currentIsMemberA ? -t.amount : t.amount), 0);
 
       const incomeSum = accTxs
         .filter(t => t.type === 'income' && !isSettlementTx(t))
@@ -209,7 +191,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         balance: currentBalance,
       };
     });
-  }, [rawAccounts, filteredTransactions, activeScope, partner, user]);
+  }, [rawAccounts, filteredTransactions, activeScope, partner, user, members]);
 
   // Filter budgets according to active scope. Budgets repeat every month, so keep only the
   // most recent limit per category (older ones from previous months are superseded).
@@ -287,25 +269,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Calculate Shared Debt Balance
   const sharedDebt: SharedDebtBalance = useMemo(() => {
-    const isAlexis = (user?.displayName || user?.email || '').toLowerCase().includes('alexis');
-    const isKarla = (user?.displayName || user?.email || '').toLowerCase().includes('karla') ||
-                    (user?.displayName || user?.email || '').toLowerCase().includes('karlita');
-
-    const u1Id = user?.uid || 'user_1';
-    const u1Name = user?.displayName || (isKarla ? 'Karla Vizcaíno' : 'Alexis Guerra');
-
-    let u2Id = partner?.uid || (u1Id === 'user_1' ? 'user_2' : 'partner_2');
-    if (u2Id === u1Id) {
-      u2Id = `${u1Id}_partner`;
+    // Without a partner there is nobody to owe money to
+    if (!partner) {
+      return {
+        netAmount: 0,
+        debtorId: null,
+        creditorId: null,
+        debtorName: '',
+        creditorName: '',
+        amountOwed: 0,
+        isBalanced: true,
+      };
     }
-
-    let u2Name = partner?.displayName;
-    if (!u2Name || u2Name.toLowerCase() === u1Name.toLowerCase()) {
-      u2Name = u1Name.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : 'Alexis Guerra';
-    }
-
-    return calculateSharedDebtBalance(rawTransactions, u1Id, u2Id, u1Name, u2Name);
-  }, [rawTransactions, user, partner]);
+    return calculateSharedDebtBalance(rawTransactions, members);
+  }, [rawTransactions, partner, members]);
 
   // Generate Financial Insights
   const insights = useMemo(() => {
@@ -445,14 +422,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const settlementTx: Omit<Transaction, 'transactionId' | 'createdAt'> = {
       userId: user?.uid || sharedDebt.debtorId || DEMO_USER_1.uid,
       userName: sharedDebt.debtorName,
-      coupleId: couple?.coupleId || DEMO_COUPLE.coupleId,
+      coupleId: couple?.coupleId || null,
       scope: 'shared',
       type: 'income',
       amount: amount,
       category: 'Saldar Deuda Pareja',
       date: new Date().toISOString().split('T')[0],
       description: `Saldado de deuda de ${sharedDebt.debtorName} a ${sharedDebt.creditorName}`,
-      paidBy: sharedDebt.debtorName,
+      paidBy: sharedDebt.debtorId || sharedDebt.debtorName,
       splitMethod: 'full',
       approvalStatus: 'approved',
     };
@@ -460,14 +437,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await addTransaction(settlementTx);
   };
 
+  // Restart only this user's own data. Other users' data is never touched, and shared
+  // transactions are kept while there is a partner because they make up the debt balance.
   const clearAllData = async () => {
-    setRawTransactions([]);
-    setRawAccounts([]);
-    setRawBudgets([]);
+    if (!user) return;
+    const hasPartner = Boolean(partner);
+    setRawTransactions(prev => prev.filter(t => t.userId !== user.uid || (hasPartner && t.scope === 'shared')));
+    setRawAccounts(prev => prev.filter(a => a.ownerId !== user.uid));
+    setRawBudgets(prev => prev.filter(b => b.targetId !== user.uid));
+    if (isDemoMode) return;
     try {
-      localStorage.clear();
-      await financeService.clearDatabase();
+      localStorage.removeItem(`duofinanzas_local_txs_${user.uid}`);
     } catch (e) {}
+    await financeService.clearUserData(user.uid, hasPartner);
   };
 
   return (
@@ -484,6 +466,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         metrics,
         insights,
         sharedDebt,
+        members,
         addTransaction,
         deleteTransaction,
         approveTransaction,

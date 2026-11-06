@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { getSplitBadgeText } from '../utils/splitUtils';
 
 export const PendingApprovalBanner: React.FC = () => {
-  const { transactions, approveTransaction, rejectTransaction } = useFinance();
+  const { transactions, approveTransaction, rejectTransaction, members } = useFinance();
   const { user, partner } = useAuth();
 
   // Find transactions pending approval
@@ -41,7 +41,7 @@ export const PendingApprovalBanner: React.FC = () => {
                 </h3>
 
                 <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                  Asignado como: <strong className="text-pink-300">Pagado por {tx.userName || 'Pareja'}</strong> ({getSplitBadgeText(tx)}).
+                  Asignado como: <strong className="text-pink-300">Pagado por {tx.userName || 'Pareja'}</strong> ({getSplitBadgeText(tx, members)}).
                   Si aceptas, este movimiento <strong>modificará tu balance de deuda</strong>. Si no aceptas, se cancelará sin afectar tus saldos.
                 </p>
               </div>

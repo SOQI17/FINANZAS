@@ -273,7 +273,8 @@ export const financeService = {
       try {
         await setDoc(doc(db, 'couples', coupleId), couple);
         await setDoc(doc(db, 'users', user1.uid), updatedUser1, { merge: true });
-        await setDoc(doc(db, 'users', partner.uid), updatedUser2, { merge: true });
+        // The rules only let a user change partnerId/coupleId on someone else's profile
+        await setDoc(doc(db, 'users', partner.uid), { partnerId: user1.uid, coupleId }, { merge: true });
       } catch (e) {
         // Silently fall back locally
       }
@@ -340,6 +341,7 @@ export const financeService = {
   subscribeTransactions(
     userId: string,
     coupleId: string | null,
+    partnerId: string | null,
     callback: (txs: Transaction[]) => void
   ) {
     if (!auth.currentUser) {
@@ -348,32 +350,55 @@ export const financeService = {
       return () => {};
     }
 
+    // Only this user's transactions and the shared ones created or paid by their partner.
+    // Each query matches what firestore.rules allows, so the database never sends other users' data.
+    const txCol = collection(db, 'transactions');
+    const queries = [
+      query(txCol, where('userId', '==', userId)),
+      query(txCol, where('paidBy', '==', userId)),
+    ];
+    if (partnerId) {
+      queries.push(query(txCol, where('userId', '==', partnerId), where('scope', '==', 'shared')));
+      queries.push(query(txCol, where('paidBy', '==', partnerId), where('scope', '==', 'shared')));
+    }
+
+    const results: (Map<string, Transaction> | null)[] = queries.map(() => null);
+
+    const emit = () => {
+      // Wait until every query has answered once to avoid showing a partial list
+      if (results.some(r => r === null)) return;
+      const merged = new Map<string, Transaction>();
+      results.forEach(r => r!.forEach((t, id) => merged.set(id, t)));
+      const remoteTxs = Array.from(merged.values())
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      // Update local cache to match Firestore source of truth
+      try {
+        localStorage.setItem(`duofinanzas_local_txs_${userId}`, JSON.stringify(remoteTxs));
+      } catch (e) {}
+
+      callback(remoteTxs);
+    };
+
     try {
-      const q = query(collection(db, 'transactions'));
-      return onSnapshot(q, (snapshot) => {
-        const remoteTxs: Transaction[] = [];
+      const unsubscribers = queries.map((q, i) => onSnapshot(q, (snapshot) => {
+        const map = new Map<string, Transaction>();
         snapshot.forEach(docSnap => {
           const t = docSnap.data() as Transaction;
-          const isUserTx = t.userId === userId || t.paidBy === userId;
-          const isSharedTx = t.scope === 'shared' || Boolean(coupleId && t.coupleId === coupleId);
-
-          if (isUserTx || isSharedTx) {
-            remoteTxs.push(t);
-          }
+          map.set(t.transactionId || docSnap.id, t);
         });
-
-        remoteTxs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        // Update local cache to match Firestore source of truth
-        try {
-          const key = userId ? `duofinanzas_local_txs_${userId}` : 'duofinanzas_local_txs';
-          localStorage.setItem(key, JSON.stringify(remoteTxs));
-        } catch (e) {}
-
-        callback(remoteTxs);
+        results[i] = map;
+        emit();
       }, (error) => {
-        callback(getLocalTransactions(userId));
-      });
+        console.warn('Transactions query failed:', error);
+        if (i < 2) {
+          // The user's own data could not load: fall back to the local cache
+          callback(getLocalTransactions(userId));
+        }
+        results[i] = results[i] || new Map();
+        emit();
+      }));
+      return () => unsubscribers.forEach(u => u());
     } catch (e) {
       callback(getLocalTransactions(userId));
       return () => {};
@@ -439,19 +464,28 @@ export const financeService = {
     }
   },
 
-  // --- WIPE / CLEAR ALL FIRESTORE DATA ---
-  async clearDatabase(): Promise<void> {
+  // --- WIPE THE CURRENT USER'S OWN DATA ---
+  // Only deletes documents that belong to this user. Shared transactions are kept while
+  // the user has a partner, because they also make up the partner's debt balance.
+  async clearUserData(userId: string, hasPartner: boolean): Promise<void> {
     if (!auth.currentUser) return;
     try {
-      const collectionsToWipe = ['transactions', 'accounts', 'budgets'];
-      for (const colName of collectionsToWipe) {
-        const snap = await getDocs(collection(db, colName));
-        for (const d of snap.docs) {
-          await deleteDoc(doc(db, colName, d.id));
-        }
+      const txSnap = await getDocs(query(collection(db, 'transactions'), where('userId', '==', userId)));
+      for (const d of txSnap.docs) {
+        const t = d.data() as Transaction;
+        if (hasPartner && t.scope === 'shared') continue;
+        await deleteDoc(d.ref);
+      }
+      const accSnap = await getDocs(query(collection(db, 'accounts'), where('ownerId', '==', userId)));
+      for (const d of accSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+      const budSnap = await getDocs(query(collection(db, 'budgets'), where('targetId', '==', userId)));
+      for (const d of budSnap.docs) {
+        await deleteDoc(d.ref);
       }
     } catch (e) {
-      // Fall back
+      console.warn('Could not clear user data in Firestore:', e);
     }
   },
 

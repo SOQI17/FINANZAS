@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, ReceiptText, DollarSign, Calendar, Tag, Wallet, Users, User, ChevronDown, Check } from 'lucide-react';
+import { X, ReceiptText, DollarSign, Calendar, Tag, Wallet, Users, User, ChevronDown, Check, ArrowLeftRight } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { useAuth } from '../../context/AuthContext';
 import { FinancialScope, TransactionType, SplitMethod } from '../../types';
 import { getCurrentDateISO, getYesterdayISO } from '../../utils/dateUtils';
+import { firstName } from '../../utils/splitUtils';
 
 interface TransactionModalProps {
   onClose: () => void;
@@ -23,21 +24,23 @@ const CATEGORY_LIST: { name: string; icon: string }[] = [
   { name: 'Otros', icon: '📦' },
 ];
 
-const SPLIT_OPTIONS_LIST: { id: SplitMethod; label: string; desc: string; icon: string }[] = [
-  { id: '50_50', label: 'Dividir 50% / 50%', desc: 'Partes iguales (50% - 50%)', icon: '⚖️' },
-  { id: '60_40', label: 'Dividir 60% / 40%', desc: '60% Tú - 40% Pareja', icon: '📊' },
-  { id: '70_30', label: 'Dividir 70% / 30%', desc: '70% Tú - 30% Pareja', icon: '📊' },
-  { id: '80_20', label: 'Dividir 80% / 20%', desc: '80% Tú - 20% Pareja', icon: '📊' },
-  { id: 'custom_percentage', label: 'Porcentaje Personalizado (%)', desc: 'Ingresar % libre exacto', icon: '🎚️' },
-  { id: 'full', label: '100% Pareja', desc: 'Asignar Deuda Total', icon: '🤝' },
+// majorShare = the percentage taken by whoever assumes the larger part (chosen in the form)
+const SPLIT_PRESETS: { id: SplitMethod; label: string; majorShare: number | null }[] = [
+  { id: '50_50', label: '50 / 50', majorShare: 50 },
+  { id: '60_40', label: '60 / 40', majorShare: 60 },
+  { id: '70_30', label: '70 / 30', majorShare: 70 },
+  { id: '80_20', label: '80 / 20', majorShare: 80 },
+  { id: 'full', label: '100%', majorShare: 100 },
+  { id: 'custom_percentage', label: 'Personalizado', majorShare: null },
 ];
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, initialType }) => {
   const { user, partner, couple } = useAuth();
-  const { addTransaction, accounts, activeScope, setSelectedPeriod } = useFinance();
+  const { addTransaction, accounts, activeScope, setSelectedPeriod, members } = useFinance();
+  const userDisplayName = user?.displayName || 'Tú';
   const partnerDisplayName = (partner?.displayName && partner.displayName !== user?.displayName)
     ? partner.displayName
-    : (user?.displayName?.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : (user?.displayName?.toLowerCase().includes('karla') ? 'Alexis Guerra' : 'Pareja'));
+    : 'Pareja';
 
   const [type, setType] = useState<TransactionType>(initialType || 'expense');
   const [scope, setScope] = useState<FinancialScope>(activeScope);
@@ -49,9 +52,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
   const [paidBy, setPaidBy] = useState<string>(user?.uid || '');
   const [splitMethod, setSplitMethod] = useState<SplitMethod>('50_50');
   const [customUserPercent, setCustomUserPercent] = useState<number>(50);
+  // Whether the current user assumes the larger part of an uneven preset (60/40, 70/30, 80/20, 100%)
+  const [userTakesMajor, setUserTakesMajor] = useState<boolean>(true);
 
   const [showCategoryOpen, setShowCategoryOpen] = useState(false);
-  const [showSplitOpen, setShowSplitOpen] = useState(false);
 
   useEffect(() => {
     if (!accountId && accounts.length > 0) {
@@ -60,21 +64,27 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
   }, [accounts, accountId]);
 
   const selectedCategoryObj = CATEGORY_LIST.find(c => c.name === category) || CATEGORY_LIST[0];
-  const selectedSplitObj = SPLIT_OPTIONS_LIST.find(s => s.id === splitMethod) || SPLIT_OPTIONS_LIST[0];
+  const selectedPreset = SPLIT_PRESETS.find(s => s.id === splitMethod) || SPLIT_PRESETS[0];
+  const majorShare = selectedPreset.majorShare;
+  const isUnevenPreset = majorShare !== null && majorShare !== 50;
 
   const parsedAmount = parseFloat(amount) || 0;
-  const userPercent = splitMethod === '50_50'
-    ? 50
-    : splitMethod === '60_40'
-    ? 60
-    : splitMethod === '70_30'
-    ? 70
-    : splitMethod === '80_20'
-    ? 80
-    : splitMethod === 'full'
-    ? 0
-    : customUserPercent;
+  const userPercent = majorShare === null
+    ? customUserPercent
+    : (userTakesMajor ? majorShare : 100 - majorShare);
   const partnerPercent = 100 - userPercent;
+
+  const userFirstName = firstName(userDisplayName);
+  const partnerFirstName = firstName(partnerDisplayName);
+  const isUserPayer = paidBy === (user?.uid || 'user_1');
+
+  const selectSplit = (id: SplitMethod) => {
+    setSplitMethod(id);
+    // "100%" usually means the person who did not pay owes everything
+    if (id === 'full') {
+      setUserTakesMajor(!isUserPayer);
+    }
+  };
 
   const userShareAmount = (parsedAmount * (userPercent / 100));
   const partnerShareAmount = (parsedAmount * (partnerPercent / 100));
@@ -89,14 +99,13 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
     const uRatio = userPercent / 100;
     const pRatio = partnerPercent / 100;
 
-    // splitRatioUser1 = Alexis's share, splitRatioUser2 = Karla's share
-    const currentName = (user?.displayName || user?.email || '').toLowerCase();
-    const isCurrentKarla = currentName.includes('karla') || currentName.includes('karlita');
+    // splitRatioUser1 = couple member A's share, splitRatioUser2 = member B's share
+    const isCurrentMemberB = Boolean(user && members.b.id === user.uid);
 
     let splitRatioUser1 = uRatio;
     let splitRatioUser2 = pRatio;
 
-    if (isCurrentKarla) {
+    if (isCurrentMemberB) {
       splitRatioUser1 = pRatio;
       splitRatioUser2 = uRatio;
     }
@@ -230,7 +239,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
               <label className="text-xs font-semibold text-slate-400 mb-1 block">Categoría:</label>
               <button
                 type="button"
-                onClick={() => { setShowCategoryOpen(!showCategoryOpen); setShowSplitOpen(false); }}
+                onClick={() => setShowCategoryOpen(!showCategoryOpen)}
                 className="w-full bg-slate-950 text-white text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none flex items-center justify-between transition hover:bg-slate-900"
               >
                 <span className="flex items-center gap-2 font-medium truncate">
@@ -315,7 +324,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
                     }`}
                   >
                     <User className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{user?.displayName || 'Alexis Guerra'} (Pagó todo)</span>
+                    <span>{userDisplayName} (Pagó todo)</span>
                   </button>
 
                   <button
@@ -328,136 +337,185 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ onClose, ini
                     }`}
                   >
                     <Users className="w-3.5 h-3.5 text-pink-400" />
-                    <span>{(partner?.displayName && partner.displayName !== user?.displayName ? partner.displayName : (user?.displayName?.toLowerCase().includes('alexis') ? 'Karla Vizcaíno' : 'Alexis Guerra'))} (Pagó todo)</span>
+                    <span>{partnerDisplayName} (Pagó todo)</span>
                   </button>
                 </div>
               </div>
 
-              <div className="relative">
+              {/* Split method: preset chips */}
+              <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-pink-400 block">
-                    Método de División del Gasto:
+                    ¿Cómo se divide el gasto?
                   </label>
                   <span className="text-[11px] font-semibold text-slate-400">
-                    {userPercent}% Tú • {partnerPercent}% Pareja
+                    {userFirstName} {userPercent}% • {partnerFirstName} {partnerPercent}%
                   </span>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => { setShowSplitOpen(!showSplitOpen); setShowCategoryOpen(false); }}
-                  className="w-full bg-slate-900 text-white text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-800 focus:border-pink-500 outline-none flex items-center justify-between transition hover:bg-slate-800/80 shadow-xs"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <span className="text-base shrink-0">{selectedSplitObj.icon}</span>
-                    <span className="font-bold text-pink-300 truncate">{selectedSplitObj.label}</span>
-                    <span className="text-[11px] text-slate-400 hidden sm:inline truncate">({selectedSplitObj.desc})</span>
-                  </div>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${showSplitOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {showSplitOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-50 p-1.5 space-y-1">
-                    {SPLIT_OPTIONS_LIST.map(opt => {
-                      const isSelected = splitMethod === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => {
-                            setSplitMethod(opt.id);
-                            setShowSplitOpen(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 rounded-xl text-xs sm:text-sm flex items-center justify-between transition ${
-                            isSelected
-                              ? 'bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30'
-                              : 'text-slate-300 hover:bg-slate-800'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 truncate">
-                            <span className="text-base shrink-0">{opt.icon}</span>
-                            <div className="truncate">
-                              <div className="font-bold text-white truncate">{opt.label}</div>
-                              <div className="text-[10px] text-slate-400 truncate">{opt.desc}</div>
-                            </div>
-                          </div>
-                          {isSelected && <Check className="w-4 h-4 text-pink-400 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                  {SPLIT_PRESETS.map(opt => {
+                    const isSelected = splitMethod === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => selectSplit(opt.id)}
+                        aria-pressed={isSelected}
+                        className={`py-2 px-1 rounded-xl border text-xs font-bold transition ${
+                          isSelected
+                            ? 'bg-pink-500/20 border-pink-500 text-pink-200 shadow-sm'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
+              {/* Who assumes the larger part */}
+              {isUnevenPreset && (
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">
+                    {majorShare === 100 ? '¿Quién asume el 100% del gasto?' : `¿Quién asume el ${majorShare}%?`}
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setUserTakesMajor(true)}
+                      aria-pressed={userTakesMajor}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-between gap-2 ${
+                        userTakesMajor
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-200'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <User className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{userFirstName}</span>
+                      </span>
+                      <span className="font-black">{userTakesMajor ? majorShare : 100 - (majorShare || 0)}%</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUserTakesMajor(false)}
+                      aria-pressed={!userTakesMajor}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-between gap-2 ${
+                        !userTakesMajor
+                          ? 'bg-pink-500/20 border-pink-500 text-pink-200'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Users className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{partnerFirstName}</span>
+                      </span>
+                      <span className="font-black">{!userTakesMajor ? majorShare : 100 - (majorShare || 0)}%</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Custom percentage */}
               {splitMethod === 'custom_percentage' && (
-                <div className="p-3.5 bg-slate-900/90 rounded-2xl border border-pink-500/40 space-y-3 shadow-inner">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                      <span>🎚️ Configurar Porcentaje Personalizado:</span>
-                    </span>
-                    <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
+                <div className="p-3 bg-slate-900/90 rounded-2xl border border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-emerald-500/40">
                       <input
                         type="number"
                         min="0"
                         max="100"
                         value={customUserPercent}
                         onChange={(e) => setCustomUserPercent(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
-                        className="w-12 bg-transparent text-emerald-400 font-black text-sm text-center outline-none"
+                        aria-label={`Porcentaje de ${userFirstName}`}
+                        className="w-11 bg-transparent text-emerald-400 font-black text-sm text-center outline-none"
                       />
-                      <span className="text-xs text-slate-400 font-bold">% Tú</span>
+                      <span className="text-[11px] text-slate-400 font-bold truncate">% {userFirstName}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCustomUserPercent(100 - customUserPercent)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-bold text-slate-300 hover:text-white hover:border-slate-700 transition"
+                      title="Intercambiar porcentajes"
+                    >
+                      <ArrowLeftRight className="w-3.5 h-3.5" />
+                      <span>Intercambiar</span>
+                    </button>
+                    <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-pink-500/40">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={100 - customUserPercent}
+                        onChange={(e) => setCustomUserPercent(100 - Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                        aria-label={`Porcentaje de ${partnerFirstName}`}
+                        className="w-11 bg-transparent text-pink-400 font-black text-sm text-center outline-none"
+                      />
+                      <span className="text-[11px] text-slate-400 font-bold truncate">% {partnerFirstName}</span>
                     </div>
                   </div>
-
-                  <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 flex">
-                    <div
-                      className="bg-emerald-500 h-full transition-all duration-300"
-                      style={{ width: `${userPercent}%` }}
-                      title={`Tú: ${userPercent}%`}
-                    />
-                    <div
-                      className="bg-pink-500 h-full transition-all duration-300"
-                      style={{ width: `${partnerPercent}%` }}
-                      title={`Pareja: ${partnerPercent}%`}
-                    />
-                  </div>
-
                   <input
                     type="range"
                     min="0"
                     max="100"
-                    step="1"
+                    step="5"
                     value={customUserPercent}
                     onChange={(e) => setCustomUserPercent(parseInt(e.target.value, 10))}
-                    className="w-full accent-pink-500 cursor-pointer h-2 bg-slate-950 rounded-lg appearance-none"
+                    aria-label={`Porcentaje de ${userFirstName}`}
+                    className="w-full accent-pink-500 cursor-pointer"
                   />
-                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 px-0.5">
-                    <span className="text-emerald-400">👤 Tú: {userPercent}%</span>
-                    <span className="text-pink-400">❤️ {partnerDisplayName}: {partnerPercent}%</span>
-                  </div>
                 </div>
               )}
 
-              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2 text-xs">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                  <span>Cálculo Final del Gasto:</span>
-                  <span className="font-extrabold text-white text-sm">${parsedAmount.toFixed(2)}</span>
+              {/* Visual result */}
+              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2.5 text-xs">
+                <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <span>Reparto del gasto</span>
+                  <span className="font-extrabold text-white text-sm normal-case">${parsedAmount.toFixed(2)}</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
-                  <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
-                    <div className="text-[10px] text-slate-400 font-semibold">Tu Cuota ({userPercent}%):</div>
-                    <div className="text-base font-black text-emerald-400 mt-0.5">
-                      ${userShareAmount.toFixed(2)}
+                <div className="w-full h-7 rounded-xl overflow-hidden flex bg-slate-950 border border-slate-800 text-[11px] font-black">
+                  {userPercent > 0 && (
+                    <div
+                      className="bg-emerald-500/80 text-emerald-950 h-full flex items-center justify-center transition-all duration-300 truncate px-1"
+                      style={{ width: `${userPercent}%` }}
+                    >
+                      {userPercent >= 15 ? `${userFirstName} ${userPercent}%` : `${userPercent}%`}
                     </div>
-                  </div>
+                  )}
+                  {partnerPercent > 0 && (
+                    <div
+                      className="bg-pink-500/80 text-pink-950 h-full flex items-center justify-center transition-all duration-300 truncate px-1"
+                      style={{ width: `${partnerPercent}%` }}
+                    >
+                      {partnerPercent >= 15 ? `${partnerFirstName} ${partnerPercent}%` : `${partnerPercent}%`}
+                    </div>
+                  )}
+                </div>
 
+                <div className="grid grid-cols-2 gap-2">
                   <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
-                    <div className="text-[10px] text-slate-400 font-semibold">Cuota {partnerDisplayName} ({partnerPercent}%):</div>
-                    <div className="text-base font-black text-pink-400 mt-0.5">
-                      ${partnerShareAmount.toFixed(2)}
-                    </div>
+                    <div className="text-[10px] text-slate-400 font-semibold truncate">Le toca a {userFirstName}</div>
+                    <div className="text-base font-black text-emerald-400 mt-0.5">${userShareAmount.toFixed(2)}</div>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                    <div className="text-[10px] text-slate-400 font-semibold truncate">Le toca a {partnerFirstName}</div>
+                    <div className="text-base font-black text-pink-400 mt-0.5">${partnerShareAmount.toFixed(2)}</div>
                   </div>
                 </div>
+
+                {parsedAmount > 0 && (
+                  <p className="text-[11px] text-slate-300 bg-slate-950/70 border border-slate-800 rounded-xl px-2.5 py-2">
+                    {isUserPayer
+                      ? (partnerShareAmount > 0
+                        ? <><strong className="text-pink-300">{partnerFirstName}</strong> te deberá <strong className="text-white">${partnerShareAmount.toFixed(2)}</strong> por este gasto.</>
+                        : <>Asumes todo el gasto: nadie debe nada.</>)
+                      : (userShareAmount > 0
+                        ? <>Le deberás <strong className="text-white">${userShareAmount.toFixed(2)}</strong> a <strong className="text-pink-300">{partnerFirstName}</strong> por este gasto.</>
+                        : <><strong className="text-pink-300">{partnerFirstName}</strong> asume todo el gasto: nadie debe nada.</>)}
+                  </p>
+                )}
               </div>
             </div>
           )}

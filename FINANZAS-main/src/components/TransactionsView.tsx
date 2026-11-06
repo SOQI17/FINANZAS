@@ -21,7 +21,7 @@ import { Transaction } from '../types';
 import { getSplitBadgeText } from '../utils/splitUtils';
 
 export const TransactionsView: React.FC = () => {
-  const { filteredTransactions, deleteTransaction, activeScope } = useFinance();
+  const { filteredTransactions, deleteTransaction, activeScope, members } = useFinance();
   const { user, partner } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -180,7 +180,7 @@ export const TransactionsView: React.FC = () => {
                       </span>
                       {tx.scope === 'shared' && (
                         <span className="px-1.5 py-0.5 bg-pink-500/10 text-pink-400 rounded text-[10px] font-semibold border border-pink-500/20">
-                          Pagado por {payerName} ({getSplitBadgeText(tx)})
+                          Pagado por {payerName} ({getSplitBadgeText(tx, members)})
                         </span>
                       )}
                     </div>

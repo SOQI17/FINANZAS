@@ -47,28 +47,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let pId = currentUser.partnerId;
     let cId = currentUser.coupleId;
 
-    // Auto-link Alexis Guerra and Karla Vizcaíno in Cloud Firestore
+    // Repair the Alexis Guerra ↔ Karla Vizcaíno link in Cloud Firestore. Only a pair whose
+    // profiles already point to each other is repaired, so a new user with a similar name
+    // is never attached to them.
     const name = (currentUser.displayName || currentUser.email || '').toLowerCase();
     const isAlexisOrKarla = name.includes('alexis') || name.includes('karla') || name.includes('karlita');
 
     if (isAlexisOrKarla) {
       try {
         const usersSnap = await getDocs(collection(db, 'users'));
+        const profiles: UserProfile[] = [];
+        usersSnap.forEach(d => profiles.push(d.data() as UserProfile));
+        const nameOf = (u: UserProfile) => (u.displayName || u.email || '').toLowerCase();
+
         let alexisUser: UserProfile | null = null;
         let karlaUser: UserProfile | null = null;
+        for (const a of profiles.filter(u => nameOf(u).includes('alexis'))) {
+          const k = profiles.find(u =>
+            (nameOf(u).includes('karla') || nameOf(u).includes('karlita')) &&
+            (a.partnerId === u.uid || u.partnerId === a.uid)
+          );
+          if (k) {
+            alexisUser = a;
+            karlaUser = k;
+            break;
+          }
+        }
 
-        usersSnap.forEach(d => {
-          const u = d.data() as UserProfile;
-          const uName = (u.displayName || u.email || '').toLowerCase();
-          if (uName.includes('alexis')) alexisUser = u;
-          if (uName.includes('karla') || uName.includes('karlita')) karlaUser = u;
-        });
+        const isCurrentInPair = Boolean(alexisUser && karlaUser &&
+          (currentUser.uid === (alexisUser as UserProfile).uid || currentUser.uid === (karlaUser as UserProfile).uid));
 
-        if (alexisUser && karlaUser) {
+        if (alexisUser && karlaUser && isCurrentInPair) {
           const sharedCoupleId = (alexisUser as UserProfile).coupleId || (karlaUser as UserProfile).coupleId || `couple_alexis_karla`;
           let partnerProfile: UserProfile | null = null;
 
-          if (currentUser.uid === (alexisUser as UserProfile).uid || currentUser.email?.toLowerCase().includes('alexis')) {
+          if (currentUser.uid === (alexisUser as UserProfile).uid) {
             pId = (karlaUser as UserProfile).uid;
             cId = sharedCoupleId;
             partnerProfile = karlaUser;
@@ -95,15 +108,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await setDoc(doc(db, 'couples', sharedCoupleId), coupleDoc, { merge: true });
           await setDoc(doc(db, 'users', (alexisUser as UserProfile).uid), { partnerId: (karlaUser as UserProfile).uid, coupleId: sharedCoupleId }, { merge: true });
           await setDoc(doc(db, 'users', (karlaUser as UserProfile).uid), { partnerId: (alexisUser as UserProfile).uid, coupleId: sharedCoupleId }, { merge: true });
-
-          // Tag all shared transactions in Firestore with sharedCoupleId
-          const txSnap = await getDocs(collection(db, 'transactions'));
-          txSnap.forEach(async (tDoc) => {
-            const t = tDoc.data();
-            if (t.scope === 'shared' && t.coupleId !== sharedCoupleId) {
-              await updateDoc(doc(db, 'transactions', tDoc.id), { coupleId: sharedCoupleId });
-            }
-          });
         }
       } catch (e) {
         console.warn('Relationship repair:', e);
@@ -120,40 +124,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       coupleDoc = await financeService.getCouple(cId);
     }
 
-    // Force distinct partner profile to prevent same-user linking (e.g. Alexis & Alexis)
-    const isAlexis = (currentUser.displayName || currentUser.email || '').toLowerCase().includes('alexis');
-    const isKarla = (currentUser.displayName || currentUser.email || '').toLowerCase().includes('karla') ||
-                    (currentUser.displayName || currentUser.email || '').toLowerCase().includes('karlita');
+    // A user can never be their own partner
+    if (partnerProfile && partnerProfile.uid === currentUser.uid) {
+      partnerProfile = null;
+    }
 
-    if (!partnerProfile || partnerProfile.uid === currentUser.uid || partnerProfile.displayName?.toLowerCase() === currentUser.displayName?.toLowerCase()) {
-      if (isAlexis) {
-        partnerProfile = {
-          uid: 'karla_partner_uid',
-          displayName: 'Karla Vizcaíno',
-          email: 'karla@suma2.app',
-          currency: 'USD',
-          inviteCode: 'PAREJA-KARLA',
-          createdAt: new Date().toISOString()
-        };
-      } else if (isKarla) {
-        partnerProfile = {
-          uid: 'alexis_partner_uid',
-          displayName: 'Alexis Guerra',
-          email: 'alexisguerra9577@gmail.com',
-          currency: 'USD',
-          inviteCode: 'PAREJA-ALEXIS',
-          createdAt: new Date().toISOString()
-        };
-      }
+    // Users without a partner start alone: no partner and no couple
+    if (!partnerProfile) {
+      setPartner(null);
+      setCouple(null);
+      return;
     }
 
     if (!coupleDoc || coupleDoc.user1Id === coupleDoc.user2Id) {
-      const u1Name = currentUser.displayName || (isAlexis ? 'Alexis Guerra' : 'Karla Vizcaíno');
-      const u2Name = partnerProfile?.displayName || (isAlexis ? 'Karla Vizcaíno' : 'Alexis Guerra');
+      const u1Name = currentUser.displayName || 'Usuario';
+      const u2Name = partnerProfile.displayName || 'Pareja';
       coupleDoc = {
         coupleId: cId || `couple_${currentUser.uid}`,
         user1Id: currentUser.uid,
-        user2Id: partnerProfile?.uid || `partner_${currentUser.uid}`,
+        user2Id: partnerProfile.uid,
         user1Name: u1Name,
         user2Name: u2Name,
         status: 'active',

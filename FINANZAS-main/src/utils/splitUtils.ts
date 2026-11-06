@@ -1,15 +1,62 @@
-import { Transaction } from '../types';
+import { Couple, Transaction, UserProfile } from '../types';
+
+export interface CoupleMember {
+  id: string;
+  name: string;
+}
 
 /**
- * Detects whether Alexis paid a transaction.
- * userName holds the payer's display name; paidBy is usually a uid (or a name for settlements).
+ * The two members of a couple. Member A owns splitRatioUser1 and member B owns splitRatioUser2.
  */
-export function isAlexisPayer(tx: Transaction): boolean {
-  const name = (tx.userName || '').toLowerCase();
-  const paidBy = (tx.paidBy || '').toLowerCase();
-  if (name.includes('alexis') || paidBy.includes('alexis')) return true;
-  if (name.includes('karla') || name.includes('karlita') || paidBy.includes('karla') || paidBy.includes('karlita')) return false;
-  return true;
+export interface CoupleMembers {
+  a: CoupleMember;
+  b: CoupleMember;
+}
+
+export function firstName(name: string): string {
+  return (name || '').trim().split(/\s+/)[0] || name;
+}
+
+export function getCoupleMembers(
+  user: UserProfile | null,
+  partner: UserProfile | null,
+  couple: Couple | null
+): CoupleMembers {
+  const me: CoupleMember = { id: user?.uid || '', name: user?.displayName || 'Tú' };
+  const other: CoupleMember = { id: partner?.uid || '', name: partner?.displayName || 'Pareja' };
+
+  // Alexis & Karla's transactions were always stored with Alexis as user 1
+  const myName = me.name.toLowerCase();
+  const otherName = other.name.toLowerCase();
+  if (myName.includes('alexis') && otherName.includes('karl')) return { a: me, b: other };
+  if (myName.includes('karl') && otherName.includes('alexis')) return { a: other, b: me };
+
+  if (couple && user && couple.user2Id === user.uid) return { a: other, b: me };
+  return { a: me, b: other };
+}
+
+function nameMatches(text: string, member: CoupleMember): boolean {
+  const first = firstName(member.name).toLowerCase();
+  if (first.length < 3) return false;
+  return text.includes(first) || text.includes(first.substring(0, 4));
+}
+
+/**
+ * Whether member A paid a transaction. paidBy is normally a uid; older transactions and
+ * settlements may only carry a name in paidBy/userName.
+ */
+export function isMemberAPayer(tx: Transaction, m: CoupleMembers): boolean {
+  const paidBy = tx.paidBy || '';
+  if (m.a.id && paidBy === m.a.id) return true;
+  if (m.b.id && paidBy === m.b.id) return false;
+
+  const text = `${tx.userName || ''} ${paidBy}`.toLowerCase();
+  const matchesA = nameMatches(text, m.a);
+  const matchesB = nameMatches(text, m.b);
+  if (matchesA && !matchesB) return true;
+  if (matchesB && !matchesA) return false;
+
+  return !(m.b.id && tx.userId === m.b.id);
 }
 
 export function isSettlementTx(tx: Transaction): boolean {
@@ -19,39 +66,39 @@ export function isSettlementTx(tx: Transaction): boolean {
 }
 
 /**
- * Returns the share of a transaction that belongs to Alexis and to Karla (0..1).
- * splitRatioUser1 is always Alexis's share and splitRatioUser2 Karla's, regardless of who paid.
+ * Returns the share of a transaction that belongs to member A and member B (0..1).
+ * splitRatioUser1 is always member A's share and splitRatioUser2 member B's, regardless of who paid.
  */
-export function getMemberRatios(tx: Transaction): { alexisRatio: number; karlaRatio: number } {
-  const alexisPaid = isAlexisPayer(tx);
+export function getMemberRatios(tx: Transaction, m: CoupleMembers): { aRatio: number; bRatio: number } {
+  const aPaid = isMemberAPayer(tx, m);
 
   if (tx.scope === 'individual') {
-    return alexisPaid ? { alexisRatio: 1, karlaRatio: 0 } : { alexisRatio: 0, karlaRatio: 1 };
+    return aPaid ? { aRatio: 1, bRatio: 0 } : { aRatio: 0, bRatio: 1 };
   }
   if (tx.splitRatioUser1 !== undefined && tx.splitRatioUser2 !== undefined) {
-    return { alexisRatio: tx.splitRatioUser1, karlaRatio: tx.splitRatioUser2 };
+    return { aRatio: tx.splitRatioUser1, bRatio: tx.splitRatioUser2 };
   }
 
   // Legacy transactions without stored ratios
   if (tx.splitMethod === 'full') {
-    return alexisPaid ? { alexisRatio: 0, karlaRatio: 1 } : { alexisRatio: 1, karlaRatio: 0 };
+    return aPaid ? { aRatio: 0, bRatio: 1 } : { aRatio: 1, bRatio: 0 };
   }
-  const legacyAlexisShare: Record<string, number> = { '60_40': 0.4, '70_30': 0.3, '80_20': 0.2 };
-  const alexisRatio = legacyAlexisShare[tx.splitMethod] ?? 0.5;
-  return { alexisRatio, karlaRatio: 1 - alexisRatio };
+  const legacyAShare: Record<string, number> = { '60_40': 0.4, '70_30': 0.3, '80_20': 0.2 };
+  const aRatio = legacyAShare[tx.splitMethod] ?? 0.5;
+  return { aRatio, bRatio: 1 - aRatio };
 }
 
-export function getSplitBadgeText(tx: Transaction): string {
+export function getSplitBadgeText(tx: Transaction, m: CoupleMembers): string {
   if (tx.scope === 'individual') {
     return '100% Personal';
   }
-  const { alexisRatio, karlaRatio } = getMemberRatios(tx);
-  const a = Math.round(alexisRatio * 100);
-  const k = Math.round(karlaRatio * 100);
-  if (a === 50 && k === 50) {
+  const { aRatio, bRatio } = getMemberRatios(tx, m);
+  const a = Math.round(aRatio * 100);
+  const b = Math.round(bRatio * 100);
+  if (a === 50 && b === 50) {
     return 'División 50% / 50%';
   }
-  if (a === 0) return '100% Karlita';
-  if (k === 0) return '100% Alexis';
-  return `Alexis ${a}% • Karlita ${k}%`;
+  if (a === 0) return `100% ${firstName(m.b.name)}`;
+  if (b === 0) return `100% ${firstName(m.a.name)}`;
+  return `${firstName(m.a.name)} ${a}% • ${firstName(m.b.name)} ${b}%`;
 }

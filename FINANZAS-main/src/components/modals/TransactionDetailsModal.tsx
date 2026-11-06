@@ -13,8 +13,8 @@ import {
   Tag
 } from 'lucide-react';
 import { Transaction } from '../../types';
-import { useAuth } from '../../context/AuthContext';
-import { getMemberRatios, isAlexisPayer } from '../../utils/splitUtils';
+import { useFinance } from '../../context/FinanceContext';
+import { firstName, getMemberRatios, isMemberAPayer } from '../../utils/splitUtils';
 
 interface TransactionDetailsModalProps {
   tx: Transaction;
@@ -27,19 +27,19 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
   onClose,
   onDelete
 }) => {
-  const { user, partner } = useAuth();
+  const { members } = useFinance();
 
-  const isAlexisPaid = isAlexisPayer(tx);
-  const { alexisRatio, karlaRatio } = getMemberRatios(tx);
+  const isAPaid = isMemberAPayer(tx, members);
+  const { aRatio, bRatio } = getMemberRatios(tx, members);
 
-  const alexisAmount = tx.amount * alexisRatio;
-  const karlaAmount = tx.amount * karlaRatio;
-  const alexisPercent = Math.round(alexisRatio * 100);
-  const karlaPercent = Math.round(karlaRatio * 100);
+  const aAmount = tx.amount * aRatio;
+  const bAmount = tx.amount * bRatio;
+  const aPercent = Math.round(aRatio * 100);
+  const bPercent = Math.round(bRatio * 100);
 
-  const payerName = isAlexisPaid ? 'Alexis Guerra' : 'Karla Vizcaíno';
-  const debtorName = isAlexisPaid ? 'Karla Vizcaíno' : 'Alexis Guerra';
-  const debtAmount = isAlexisPaid ? karlaAmount : alexisAmount;
+  const payerName = isAPaid ? members.a.name : members.b.name;
+  const debtorName = isAPaid ? members.b.name : members.a.name;
+  const debtAmount = isAPaid ? bAmount : aAmount;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
@@ -120,43 +120,43 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
 
             <div className="grid grid-cols-2 gap-3">
               
-              {/* Alexis Breakdown Card */}
+              {/* Member A Breakdown Card */}
               <div className="bg-slate-950 p-4 rounded-2xl border border-emerald-500/30 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-300">Alexis Guerra</span>
+                  <span className="text-xs font-bold text-emerald-300">{members.a.name}</span>
                   <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-black text-[11px]">
-                    {alexisPercent}%
+                    {aPercent}%
                   </span>
                 </div>
-                
+
                 <div className="text-2xl font-black text-white font-mono">
-                  ${alexisAmount.toFixed(2)}
+                  ${aAmount.toFixed(2)}
                 </div>
 
                 <p className="text-[10px] text-slate-400 font-medium">
                   {tx.scope === 'individual'
-                    ? (isAlexisPaid ? 'Gasto 100% Personal (Pagado en caja)' : 'Sin cuota (Gasto Personal de Karla)')
-                    : (isAlexisPaid ? 'Pagó $ ' + tx.amount.toFixed(2) + ' en caja' : 'Le corresponde abonar')}
+                    ? (isAPaid ? 'Gasto 100% Personal (Pagado en caja)' : `Sin cuota (Gasto Personal de ${firstName(members.b.name)})`)
+                    : (isAPaid ? 'Pagó $ ' + tx.amount.toFixed(2) + ' en caja' : 'Le corresponde abonar')}
                 </p>
               </div>
 
-              {/* Karlita Breakdown Card */}
+              {/* Member B Breakdown Card */}
               <div className="bg-slate-950 p-4 rounded-2xl border border-pink-500/30 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-pink-300">Karla Vizcaíno</span>
+                  <span className="text-xs font-bold text-pink-300">{members.b.name}</span>
                   <span className="px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-300 font-black text-[11px]">
-                    {karlaPercent}%
+                    {bPercent}%
                   </span>
                 </div>
 
                 <div className="text-2xl font-black text-white font-mono">
-                  ${karlaAmount.toFixed(2)}
+                  ${bAmount.toFixed(2)}
                 </div>
 
                 <p className="text-[10px] text-slate-400 font-medium">
                   {tx.scope === 'individual'
-                    ? (!isAlexisPaid ? 'Gasto 100% Personal (Pagado en caja)' : 'Sin cuota (Gasto Personal de Alexis)')
-                    : (!isAlexisPaid ? 'Pagó $ ' + tx.amount.toFixed(2) + ' en caja' : 'Le corresponde abonar')}
+                    ? (!isAPaid ? 'Gasto 100% Personal (Pagado en caja)' : `Sin cuota (Gasto Personal de ${firstName(members.a.name)})`)
+                    : (!isAPaid ? 'Pagó $ ' + tx.amount.toFixed(2) + ' en caja' : 'Le corresponde abonar')}
                 </p>
               </div>
 
