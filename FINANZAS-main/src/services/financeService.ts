@@ -251,7 +251,8 @@ export const financeService = {
 
   // --- COUPLES ---
   async linkCouple(user1: UserProfile, partner: UserProfile): Promise<Couple> {
-    const coupleId = `couple_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    // Reuse an existing couple id (e.g. relinking after an unlink) so shared accounts and budgets are kept
+    const coupleId = partner.coupleId || user1.coupleId || `couple_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const couple: Couple = {
       coupleId,
       user1Id: user1.uid,

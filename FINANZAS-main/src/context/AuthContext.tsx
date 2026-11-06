@@ -9,7 +9,7 @@ import {
   signOut,
   User as FirebaseUser
 } from 'firebase/auth';
-import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, deleteField, collection } from 'firebase/firestore';
+import { doc, updateDoc, deleteField } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { UserProfile, Couple } from '../types';
 import { financeService, generateInviteCode } from '../services/financeService';
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Users without a partner start alone: no partner and no couple
     if (!partnerProfile) {
-      if (pId || cId) {
+      if (pId) {
         await clearOwnLink(currentUser);
       }
       setPartner(null);
@@ -95,16 +95,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCouple(coupleDoc);
   };
 
-  // Remove a stale partner/couple link from the current user's own profile
+  // Remove a stale partner link from the current user's own profile. coupleId is kept so that
+  // linking again reuses the couple's shared accounts and budgets.
   const clearOwnLink = async (currentUser: UserProfile) => {
-    const cleaned: UserProfile = { ...currentUser, partnerId: undefined, coupleId: undefined };
+    const cleaned: UserProfile = { ...currentUser, partnerId: undefined };
     setUser(prev => (prev && prev.uid === currentUser.uid ? cleaned : prev));
     financeService.saveLocalUser(cleaned);
     if (auth.currentUser) {
       try {
         await updateDoc(doc(db, 'users', currentUser.uid), {
           partnerId: deleteField(),
-          coupleId: deleteField(),
         });
       } catch (e) {
         console.warn('Could not clear stale partner link:', e);
@@ -364,7 +364,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
 
     const currentPartner = partner;
-    const currentCouple = couple;
 
     const unlinkedUser: UserProfile = {
       ...user,
@@ -387,14 +386,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           partnerId: deleteField(),
           coupleId: deleteField(),
         });
+        // The partner keeps their coupleId and the couple document is kept, so if they link
+        // again (with this or another account) their shared accounts and budgets are reused.
         if (currentPartner?.uid) {
           await updateDoc(doc(db, 'users', currentPartner.uid), {
             partnerId: deleteField(),
-            coupleId: deleteField(),
           });
-        }
-        if (currentCouple?.coupleId) {
-          await deleteDoc(doc(db, 'couples', currentCouple.coupleId));
         }
       } catch (e) {
         console.warn('Could not unlink in Firestore:', e);
