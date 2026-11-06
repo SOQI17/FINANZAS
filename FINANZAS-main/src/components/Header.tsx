@@ -44,7 +44,7 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 px-2 sm:px-4 pt-2 sm:pt-3 text-slate-900">
+    <header className="safe-top sticky top-0 z-40 px-2 sm:px-4 sm:pt-3 text-slate-900">
       <div className="glass glass-sheen max-w-7xl mx-auto rounded-2xl sm:rounded-3xl px-2.5 sm:px-5 h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-4">
         
         {/* Brand Logo */}
@@ -54,7 +54,7 @@ export const Header: React.FC = () => {
             alt="Suma2 Logo"
             className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-cover ring-1 ring-white/70 shadow-md shrink-0"
           />
-          <div>
+          <div className="hidden sm:block">
             <div className="flex items-center gap-1">
               <span className="font-extrabold text-base sm:text-xl tracking-tight text-slate-900 font-sans">
                 Suma2

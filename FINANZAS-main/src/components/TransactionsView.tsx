@@ -114,10 +114,10 @@ export const TransactionsView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700 transition"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-slate-700 transition"
           >
             <Download className="w-4 h-4 text-emerald-400" />
             <span>Exportar CSV</span>
@@ -125,7 +125,7 @@ export const TransactionsView: React.FC = () => {
 
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs sm:text-sm rounded-xl transition shadow-lg shadow-emerald-950/40"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs sm:text-sm rounded-xl transition shadow-lg shadow-emerald-950/40"
           >
             <Plus className="w-4 h-4" />
             <span>Agregar Movimiento</span>
@@ -256,9 +256,9 @@ export const TransactionsView: React.FC = () => {
               <div
                 key={tx.transactionId}
                 onClick={() => setSelectedDetailsTx(tx)}
-                className="p-4 flex items-center justify-between gap-4 hover:bg-slate-800/60 transition cursor-pointer group"
+                className="p-3 sm:p-4 flex items-center justify-between gap-3 sm:gap-4 hover:bg-slate-800/60 active:bg-slate-800/60 transition cursor-pointer group"
               >
-                <div className="flex items-center gap-3.5">
+                <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition ${
                     tx.type === 'income'
                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:scale-105'
@@ -267,9 +267,9 @@ export const TransactionsView: React.FC = () => {
                     {tx.type === 'income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                   </div>
 
-                  <div>
-                    <h4 className="font-bold text-sm sm:text-base text-white group-hover:text-pink-300 transition flex items-center gap-1.5">
-                      <span>{tx.description}</span>
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-sm sm:text-base text-white group-hover:text-pink-300 transition flex items-center gap-1.5 min-w-0">
+                      <span className="truncate">{tx.description}</span>
                     </h4>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-0.5">
                       <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300 font-medium">
@@ -287,8 +287,8 @@ export const TransactionsView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
+                <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+                  <div className="text-right whitespace-nowrap">
                     <div className={`font-extrabold text-sm sm:text-base ${tx.type === 'income' ? 'text-emerald-400' : 'text-slate-100'}`}>
                       {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
                     </div>

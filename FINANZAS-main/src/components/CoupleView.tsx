@@ -131,7 +131,7 @@ export const CoupleView: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-bold text-white flex items-center gap-1.5">
                       <span>{user?.displayName || 'Tú'}</span>
                       <span className="text-slate-400">&</span>
@@ -245,7 +245,7 @@ export const CoupleView: React.FC = () => {
 
       {/* Shared Debt Balance Calculator Card */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-pink-950/40 p-6 rounded-2xl border border-pink-500/20 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-pink-500/10 text-pink-400 border border-pink-500/20">
               <ArrowRightLeft className="w-6 h-6" />
@@ -276,7 +276,7 @@ export const CoupleView: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="text-2xl font-black text-white">
+              <div className="text-xl sm:text-2xl font-black text-white">
                 <span className="text-pink-400">{sharedDebt.debtorName}</span> le debe{' '}
                 <span className="text-emerald-400">${sharedDebt.amountOwed.toFixed(2)}</span> a{' '}
                 <span className="text-teal-300">{sharedDebt.creditorName}</span>

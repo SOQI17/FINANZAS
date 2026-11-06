@@ -20,13 +20,14 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
   const { insights } = useFinance();
   const alertCount = insights.filter(i => i.severity === 'high' || i.severity === 'medium').length;
 
-  const navItems: { id: NavTab; label: string; icon: React.FC<{ className?: string }>; badge?: number }[] = [
-    { id: 'dashboard', label: 'Resumen', icon: LayoutDashboard },
-    { id: 'transactions', label: 'Transacciones', icon: ReceiptText },
-    { id: 'accounts', label: 'Cuentas', icon: WalletCards },
-    { id: 'budgets', label: 'Presupuestos', icon: PieChart },
-    { id: 'couple', label: 'Pareja', icon: HeartHandshake },
-    { id: 'insights', label: 'Puntos de Mejora', icon: Lightbulb, badge: alertCount },
+  // shortLabel is used in the phone tab bar, where space is tight
+  const navItems: { id: NavTab; label: string; shortLabel: string; icon: React.FC<{ className?: string }>; badge?: number }[] = [
+    { id: 'dashboard', label: 'Resumen', shortLabel: 'Inicio', icon: LayoutDashboard },
+    { id: 'transactions', label: 'Transacciones', shortLabel: 'Movimientos', icon: ReceiptText },
+    { id: 'accounts', label: 'Cuentas', shortLabel: 'Cuentas', icon: WalletCards },
+    { id: 'budgets', label: 'Presupuestos', shortLabel: 'Límites', icon: PieChart },
+    { id: 'couple', label: 'Pareja', shortLabel: 'Pareja', icon: HeartHandshake },
+    { id: 'insights', label: 'Puntos de Mejora', shortLabel: 'Consejos', icon: Lightbulb, badge: alertCount },
   ];
 
   return (
@@ -66,7 +67,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
       </aside>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="glass glass-sheen md:hidden fixed bottom-3 left-3 right-3 z-40 rounded-[1.75rem] px-1.5 py-1.5 flex items-center justify-around overflow-x-auto">
+      <nav className="glass-strong glass-sheen safe-bottom-nav md:hidden fixed left-2 right-2 z-40 rounded-[1.75rem] px-1 py-1 grid grid-cols-6 gap-0.5" aria-label="Navegación principal">
         {navItems.map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -75,14 +76,14 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               aria-current={isActive ? 'page' : undefined}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all min-w-[52px] shrink-0 active:scale-95 ${
+              className={`relative flex flex-col items-center justify-center py-1.5 px-0.5 rounded-2xl transition-all min-w-0 active:scale-95 ${
                 isActive
                   ? 'text-indigo-600 font-bold bg-white/85 shadow-md ring-1 ring-white'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               <Icon className={`w-5 h-5 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`} />
-              <span className="text-[10px] tracking-tight whitespace-nowrap mt-0.5">{item.label}</span>
+              <span className="text-[9.5px] leading-tight tracking-tight truncate max-w-full mt-0.5">{item.shortLabel}</span>
               {item.badge !== undefined && item.badge > 0 && (
                 <span className="absolute top-1 right-1.5 w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-white" />
               )}

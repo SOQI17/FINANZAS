@@ -176,65 +176,65 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
       )}
 
       {/* Main KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Balance Total */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-4 sm:p-5 min-w-0 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">
               {activeScope === 'individual' ? 'Balance Personal' : 'Balance Pareja'}
             </span>
             <Wallet className="w-4 h-4 text-indigo-600" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900">
+          <div className="text-lg sm:text-3xl font-black truncate text-slate-900">
             ${metrics.totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
-          <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+          <p className="text-[10px] sm:text-xs text-slate-500 mt-1.5 sm:mt-2 flex items-center gap-1 min-w-0">
             <span className="text-indigo-600 font-semibold">Disponible</span>{' '}
             {activeScope === 'individual' ? 'en tus cuentas personales' : 'en cuentas compartidas'}
           </p>
         </div>
 
         {/* Total Ingresos */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-4 sm:p-5 min-w-0 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Ingresos Mensuales</span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Ingresos Mensuales</span>
             <TrendingUp className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-emerald-600">
+          <div className="text-lg sm:text-3xl font-black truncate text-emerald-600">
             +${metrics.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
-          <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+          <p className="text-[10px] sm:text-xs text-slate-500 mt-1.5 sm:mt-2 flex items-center gap-1 min-w-0">
             <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600" />
             <span>{formatPeriodLabel(selectedPeriod)}</span>
           </p>
         </div>
 
         {/* Total Gastos */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-4 sm:p-5 min-w-0 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Gastos Mensuales</span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Gastos Mensuales</span>
             <TrendingDown className="w-4 h-4 text-rose-600" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-rose-600">
+          <div className="text-lg sm:text-3xl font-black truncate text-rose-600">
             -${metrics.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
-          <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+          <p className="text-[10px] sm:text-xs text-slate-500 mt-1.5 sm:mt-2 flex items-center gap-1 min-w-0">
             <ArrowDownRight className="w-3.5 h-3.5 text-rose-600" />
             <span>{formatPeriodLabel(selectedPeriod)}</span>
           </p>
         </div>
 
         {/* Tasa de Ahorro Mensual */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="bg-white p-4 sm:p-5 min-w-0 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Tasa de Ahorro</span>
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Tasa de Ahorro</span>
             <PiggyBank className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="flex items-baseline justify-between">
-            <div className="text-2xl sm:text-3xl font-black text-amber-600">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+            <div className="text-lg sm:text-3xl font-black text-amber-600">
               {metrics.savingsRate.toFixed(1)}%
             </div>
-            <span className="text-xs font-bold text-slate-600">
+            <span className="text-[10px] sm:text-xs font-bold text-slate-600">
               ${metrics.savingsAmount.toFixed(0)} ahorrados
             </span>
           </div>
@@ -391,7 +391,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
 
             return (
               <div key={tx.transactionId} className="py-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                     tx.type === 'income'
                       ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
@@ -399,9 +399,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
                   }`}>
                     {tx.type === 'income' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                   </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-900">{tx.description || tx.category}</h4>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-sm text-slate-900 truncate">{tx.description || tx.category}</h4>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 mt-0.5">
                       <span>{tx.category}</span>
                       <span>•</span>
                       <span>{tx.date}</span>
@@ -414,7 +414,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
                   </div>
                 </div>
 
-                <div className={`text-sm font-extrabold ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                <div className={`text-sm font-extrabold shrink-0 whitespace-nowrap ${tx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
                   {tx.type === 'income' ? '+' : '-'}${tx.amount.toFixed(2)}
                 </div>
               </div>

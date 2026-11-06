@@ -152,3 +152,67 @@
 
 /* Smooth interactions */
 .liquid-bg button { transition-property: color, background-color, border-color, box-shadow, transform, opacity; }
+
+/* ------------------------------------------------------------------
+   Phone layout
+   ------------------------------------------------------------------ */
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Safe areas (notch / home indicator) for the installed app */
+.safe-top { padding-top: max(0.5rem, env(safe-area-inset-top)); }
+.safe-bottom-nav { bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+.safe-main-bottom { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
+@media (min-width: 768px) {
+  .safe-main-bottom { padding-bottom: 2rem; }
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@media (max-width: 639px) {
+  /* Modals become bottom sheets */
+  .liquid-bg .fixed.inset-0.bg-slate-950\/80 {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .liquid-bg .fixed.inset-0.bg-slate-950\/80 > .bg-slate-900 {
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 1.75rem 1.75rem 0 0;
+    border-bottom-width: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  /* Grab handle */
+  .liquid-bg .fixed.inset-0.bg-slate-950\/80 > .bg-slate-900::before {
+    content: "";
+    display: block;
+    width: 2.5rem;
+    height: 0.3rem;
+    margin: 0.5rem auto 0;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  /* Comfortable tap targets */
+  .liquid-bg main button,
+  .liquid-bg main select,
+  .liquid-bg main input:not([type="range"]) {
+    min-height: 2.5rem;
+  }
+
+  /* Slightly tighter panels */
+  .liquid-bg main .rounded-2xl { border-radius: 1.1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-bg .fixed.inset-0.bg-slate-950\/80 > .bg-slate-900 { animation: none; }
+}

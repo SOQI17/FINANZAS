@@ -71,7 +71,7 @@ export const AccountsView: React.FC = () => {
 
       {/* Total Balance Card */}
       <div className="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-slate-900 p-6 rounded-2xl border border-emerald-500/20 shadow-lg">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5" />

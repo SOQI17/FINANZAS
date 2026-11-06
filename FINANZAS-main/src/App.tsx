@@ -54,13 +54,13 @@ function MainAppContent() {
       <Header />
 
       {/* Main Body Layout */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto pb-24 md:pb-8">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto safe-main-bottom">
         
         {/* Navigation Sidebar (Desktop) */}
         <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
 
         {/* Content View Area */}
-        <main className="flex-1 p-3 sm:p-6 md:p-8 max-w-full overflow-x-hidden">
+        <main className="flex-1 min-w-0 px-3 pt-3 sm:p-6 md:p-8 max-w-full overflow-x-hidden">
           {activeTab === 'dashboard' && <Dashboard onNavigateToTab={(tab) => setActiveTab(tab)} />}
           {activeTab === 'transactions' && <TransactionsView />}
           {activeTab === 'accounts' && <AccountsView />}
@@ -74,7 +74,7 @@ function MainAppContent() {
       {/* Floating Action Button (FAB) for Instant Movement Entry */}
       <button
         onClick={() => setQuickAddModal({ open: true })}
-        className="glass-sheen fixed bottom-24 right-4 sm:bottom-8 sm:right-8 z-40 p-4 sm:px-5 sm:py-3 bg-gradient-to-br from-indigo-500/90 via-fuchsia-500/90 to-rose-500/90 backdrop-blur-xl hover:brightness-110 text-white rounded-full shadow-[0_18px_40px_-12px_rgba(190,24,93,0.6)] font-bold text-xs sm:text-sm flex items-center gap-2 transition active:scale-95 border border-white/40"
+        className="glass-sheen fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 md:bottom-8 md:right-8 z-40 p-4 sm:px-5 sm:py-3 bg-gradient-to-br from-indigo-500/90 via-fuchsia-500/90 to-rose-500/90 backdrop-blur-xl hover:brightness-110 text-white rounded-full shadow-[0_18px_40px_-12px_rgba(190,24,93,0.6)] font-bold text-xs sm:text-sm flex items-center gap-2 transition active:scale-95 border border-white/40"
         title="Registrar Movimiento Rápido"
         aria-label="Registrar movimiento rápido"
       >
