@@ -88,9 +88,13 @@
 }
 
 /* Specular sheen on top of a glass surface */
+/* Don't override fixed/absolute/sticky elements (e.g. the phone tab bar and the FAB):
+   this rule is unlayered, so it would beat Tailwind's position utilities. */
 .glass-sheen {
-  position: relative;
   overflow: hidden;
+}
+.glass-sheen:not(.fixed):not(.absolute):not(.sticky) {
+  position: relative;
 }
 .glass-sheen::after {
   content: "";
