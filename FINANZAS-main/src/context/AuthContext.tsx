@@ -43,7 +43,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
 
   // Load partner and couple details. A partner only counts when BOTH profiles point to each
-  // other; one-sided or stale links (e.g. left by older versions) are ignored and cleaned up.
+  // other; one-sided or stale links (e.g. left by older versions) are ignored, but never
+  // deleted here: a failed or temporary read must not destroy a real link.
   // The only way to get a partner is linking with an invite code.
   const refreshRelationship = async (currentUser: UserProfile) => {
     const pId = currentUser.partnerId;
@@ -62,9 +63,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Users without a partner start alone: no partner and no couple
     if (!partnerProfile) {
-      if (pId) {
-        await clearOwnLink(currentUser);
-      }
       setPartner(null);
       setCouple(null);
       return;
@@ -93,23 +91,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setPartner(partnerProfile);
     setCouple(coupleDoc);
-  };
-
-  // Remove a stale partner link from the current user's own profile. coupleId is kept so that
-  // linking again reuses the couple's shared accounts and budgets.
-  const clearOwnLink = async (currentUser: UserProfile) => {
-    const cleaned: UserProfile = { ...currentUser, partnerId: undefined };
-    setUser(prev => (prev && prev.uid === currentUser.uid ? cleaned : prev));
-    financeService.saveLocalUser(cleaned);
-    if (auth.currentUser) {
-      try {
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          partnerId: deleteField(),
-        });
-      } catch (e) {
-        console.warn('Could not clear stale partner link:', e);
-      }
-    }
   };
 
   useEffect(() => {
