@@ -150,16 +150,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return [];
     }
 
-    const partnerId = partner?.uid || '';
-
     // Filter accounts by scope:
-    // In Mis Finanzas (individual): ONLY show accounts belonging to active user
-    // In En Pareja (shared): show accounts belonging to active user AND linked partner
+    // In Mis Finanzas (individual): ONLY the active user's own accounts (not the couple's)
+    // In En Pareja (shared): the user's accounts and the couple's shared accounts
     const scopedAccounts = rawAccounts.filter(acc => {
-      if (activeScope === 'individual') {
-        if (partnerId && acc.ownerId === partnerId) {
-          return false; // Exclude partner's personal account from Mis Finanzas
-        }
+      if (activeScope === 'individual' && !isDemoMode) {
+        return acc.ownerId === user?.uid;
       }
       return true;
     });
@@ -201,7 +197,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         balance: currentBalance,
       };
     });
-  }, [rawAccounts, filteredTransactions, activeScope, partner, user, members]);
+  }, [rawAccounts, filteredTransactions, activeScope, user, members, isDemoMode]);
 
   // Filter budgets according to active scope. Budgets repeat every month, so keep only the
   // most recent limit per category (older ones from previous months are superseded).
