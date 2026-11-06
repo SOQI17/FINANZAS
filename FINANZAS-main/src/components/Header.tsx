@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Wallet,
   Users,
@@ -11,7 +12,8 @@ import {
   Heart,
   ChevronDown,
   Flame,
-  RotateCcw
+  RotateCcw,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useFinance } from '../context/FinanceContext';
@@ -25,6 +27,13 @@ export const Header: React.FC = () => {
   const [copiedCode, setCopiedCode] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+  useEffect(() => {
+    if (!showProfileMenu) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowProfileMenu(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showProfileMenu]);
 
   const copyInviteCode = () => {
     if (!user?.inviteCode) return;
@@ -118,6 +127,8 @@ export const Header: React.FC = () => {
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 className="flex items-center gap-1.5 p-1 pr-1.5 rounded-full bg-white/50 hover:bg-white/80 border border-white/70 transition"
+                aria-label="Abrir perfil"
+                aria-expanded={showProfileMenu}
               >
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
                   {user.displayName ? user.displayName.substring(0, 2).toUpperCase() : 'US'}
@@ -138,18 +149,41 @@ export const Header: React.FC = () => {
               </button>
             )}
 
-            {/* Profile Dropdown */}
-            {showProfileMenu && user && (
-              <div className="glass-strong fixed sm:absolute top-[4.5rem] sm:top-auto sm:mt-2 right-2 left-2 sm:left-auto sm:right-0 sm:w-72 rounded-3xl p-3.5 z-50 text-slate-800">
-                <div className="pb-2.5 mb-2.5 border-b border-slate-900/[0.06]">
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Usuario Activo</p>
-                  <p className="text-sm font-bold text-slate-900">{user.displayName}</p>
-                  <p className="text-xs text-slate-500 truncate">{user.email}</p>
+            {/* Profile Menu. Rendered in a portal: the header's glass surface (backdrop-filter +
+                overflow hidden) would otherwise clip it, which hid it completely on phones. */}
+            {showProfileMenu && user && createPortal(
+              <>
+              <div className="fixed inset-0 z-[60] bg-slate-950/20" onClick={() => setShowProfileMenu(false)} aria-hidden="true" />
+              <div
+                role="dialog"
+                aria-label="Perfil"
+                className="glass-strong profile-menu fixed right-2 left-2 sm:left-auto sm:right-4 sm:w-80 rounded-3xl p-4 z-[61] text-slate-800 font-sans"
+              >
+                <div className="pb-3 mb-3 border-b border-slate-900/[0.06] flex items-start gap-3">
+                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-sm">
+                    {user.displayName ? user.displayName.substring(0, 2).toUpperCase() : 'US'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Mi perfil</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">{user.displayName}</p>
+                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                      <Heart className="w-3 h-3 text-rose-500 shrink-0" />
+                      <span className="truncate">{partner ? `En pareja con ${partner.displayName}` : 'Sin pareja vinculada'}</span>
+                    </p>
                   {isDemoMode && (
                     <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200">
                       Modo Vista Previa
                     </span>
                   )}
+                  </div>
+                  <button
+                    onClick={() => setShowProfileMenu(false)}
+                    className="p-1.5 -mr-1 -mt-1 text-slate-400 hover:text-slate-700 rounded-full shrink-0"
+                    aria-label="Cerrar perfil"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
 
                 {/* Partner Invite Code */}
@@ -186,13 +220,15 @@ export const Header: React.FC = () => {
                       setShowProfileMenu(false);
                       signOutUser();
                     }}
-                    className="w-full text-left px-2.5 py-2 rounded-xl text-xs text-rose-600 hover:bg-rose-50/80 flex items-center gap-2 font-medium"
+                    className="w-full px-3 py-3 rounded-2xl text-sm text-rose-600 bg-rose-50/80 hover:bg-rose-100/80 border border-rose-200/70 flex items-center justify-center gap-2 font-bold"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
+                    <LogOut className="w-4 h-4" />
                     <span>Cerrar Sesión</span>
                   </button>
                 </div>
               </div>
+              </>,
+              document.body
             )}
           </div>
 
