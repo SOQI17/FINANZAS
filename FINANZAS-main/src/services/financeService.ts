@@ -250,10 +250,11 @@ export const financeService = {
   },
 
   // --- COUPLES ---
+  // Links two users. Throws if the link could not be saved, so the UI never shows a link
+  // that would disappear on the next reload.
   async linkCouple(user1: UserProfile, partner: UserProfile): Promise<Couple> {
-    // Reuse an existing couple id (e.g. relinking after an unlink) so shared accounts and budgets are kept
-    const coupleId = partner.coupleId || user1.coupleId || `couple_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const couple: Couple = {
+    const newCoupleId = () => `couple_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const buildCouple = (coupleId: string): Couple => ({
       coupleId,
       user1Id: user1.uid,
       user2Id: partner.uid,
@@ -261,25 +262,27 @@ export const financeService = {
       user2Name: partner.displayName,
       status: 'active',
       createdAt: new Date().toISOString(),
-    };
+    });
 
-    const updatedUser1: UserProfile = { ...user1, partnerId: partner.uid, coupleId };
-    const updatedUser2: UserProfile = { ...partner, partnerId: user1.uid, coupleId };
-
-    saveLocalUser(updatedUser1);
-    saveLocalUser(updatedUser2);
-    saveLocalCouple(couple);
+    // Reuse an existing couple id (e.g. relinking after an unlink) so shared accounts and budgets are kept
+    let couple = buildCouple(partner.coupleId || user1.coupleId || newCoupleId());
 
     if (auth.currentUser) {
       try {
-        await setDoc(doc(db, 'couples', coupleId), couple);
-        await setDoc(doc(db, 'users', user1.uid), updatedUser1, { merge: true });
-        // The rules only let a user change partnerId/coupleId on someone else's profile
-        await setDoc(doc(db, 'users', partner.uid), { partnerId: user1.uid, coupleId }, { merge: true });
+        await setDoc(doc(db, 'couples', couple.coupleId), couple);
       } catch (e) {
-        // Silently fall back locally
+        // The old couple document belongs to other members (e.g. a stale link): start a new one
+        couple = buildCouple(newCoupleId());
+        await setDoc(doc(db, 'couples', couple.coupleId), couple);
       }
+      await setDoc(doc(db, 'users', user1.uid), { partnerId: partner.uid, coupleId: couple.coupleId }, { merge: true });
+      // The rules only let a user change partnerId/coupleId on someone else's profile
+      await setDoc(doc(db, 'users', partner.uid), { partnerId: user1.uid, coupleId: couple.coupleId }, { merge: true });
     }
+
+    saveLocalUser({ ...user1, partnerId: partner.uid, coupleId: couple.coupleId });
+    saveLocalUser({ ...partner, partnerId: user1.uid, coupleId: couple.coupleId });
+    saveLocalCouple(couple);
 
     return couple;
   },

@@ -294,7 +294,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Link in Firestore and Local Storage
-    const newCouple = await financeService.linkCouple(user, partnerProfile);
+    let newCouple: Couple;
+    try {
+      newCouple = await financeService.linkCouple(user, partnerProfile);
+    } catch (e: any) {
+      console.error('Could not save partner link:', e);
+      return {
+        success: false,
+        message: `No se pudo guardar el vínculo en la base de datos (${e?.code || e?.message || 'error desconocido'}). Revisa tu conexión e inténtalo de nuevo.`,
+      };
+    }
     
     // Update local state and persistent storage
     const updatedUser: UserProfile = {
