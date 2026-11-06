@@ -1,1 +1,154 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ------------------------------------------------------------------
+   Liquid glass design system
+   ------------------------------------------------------------------ */
+:root {
+  --glass-blur: blur(24px) saturate(180%);
+
+  /* Light glass (cards on the main canvas) */
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 0 0 1px rgba(15, 23, 42, 0.04),
+    0 12px 40px -16px rgba(30, 41, 99, 0.25);
+
+  /* Dark glass (dark panels, modals) */
+  --glass-dark-bg: rgba(15, 23, 42, 0.62);
+  --glass-dark-bg-strong: rgba(15, 23, 42, 0.86);
+  --glass-dark-inner: rgba(2, 6, 23, 0.5);
+  --glass-dark-border: rgba(255, 255, 255, 0.1);
+  --glass-dark-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 18px 48px -18px rgba(2, 6, 23, 0.6);
+}
+
+/* Animated colorful canvas behind the glass */
+.liquid-bg {
+  position: relative;
+  isolation: isolate;
+  background-color: #eef1f9;
+}
+
+.liquid-bg::before {
+  content: "";
+  position: fixed;
+  inset: -15%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 34% at 12% 8%, rgba(129, 140, 248, 0.55), transparent 70%),
+    radial-gradient(34% 30% at 88% 12%, rgba(244, 114, 182, 0.45), transparent 70%),
+    radial-gradient(40% 38% at 72% 88%, rgba(45, 212, 191, 0.4), transparent 70%),
+    radial-gradient(30% 30% at 8% 82%, rgba(251, 191, 36, 0.28), transparent 70%),
+    radial-gradient(28% 26% at 45% 50%, rgba(167, 139, 250, 0.25), transparent 70%),
+    linear-gradient(180deg, #f3f5fc 0%, #e8ecf7 100%);
+  animation: liquid-drift 36s ease-in-out infinite alternate;
+}
+
+@keyframes liquid-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-3%, 2%, 0) scale(1.05); }
+  100% { transform: translate3d(2%, -2%, 0) scale(1.02); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-bg::before { animation: none; }
+}
+
+/* Reusable glass surfaces */
+.glass {
+  background-color: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-strong {
+  background-color: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-dark {
+  background-color: var(--glass-dark-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-dark-border);
+  box-shadow: var(--glass-dark-shadow);
+}
+
+/* Specular sheen on top of a glass surface */
+.glass-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.glass-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 38%);
+  mix-blend-mode: soft-light;
+}
+
+/* ------------------------------------------------------------------
+   Apply the glass materials to the existing views.
+   These rules are unlayered, so they take precedence over Tailwind utilities.
+   ------------------------------------------------------------------ */
+
+/* Light cards (dashboard, menus, pills) */
+.liquid-bg main .bg-white,
+.liquid-bg main .bg-slate-50 {
+  background-color: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Dark panels (transactions, accounts, budgets, couple, insights) */
+.liquid-bg main .bg-slate-900\/60,
+.liquid-bg main .bg-slate-900\/90 {
+  background-color: var(--glass-dark-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-color: var(--glass-dark-border);
+  box-shadow: var(--glass-dark-shadow);
+}
+
+/* Inner wells inside dark panels */
+.liquid-bg main .bg-slate-950 {
+  background-color: var(--glass-dark-inner);
+  border-color: var(--glass-dark-border);
+}
+
+/* Modals: dark frosted sheet over a blurred backdrop */
+.liquid-bg .fixed.inset-0 > .bg-slate-900 {
+  background-color: var(--glass-dark-bg-strong);
+  -webkit-backdrop-filter: blur(32px) saturate(170%);
+  backdrop-filter: blur(32px) saturate(170%);
+  border-color: var(--glass-dark-border);
+  box-shadow: var(--glass-dark-shadow), 0 40px 80px -20px rgba(2, 6, 23, 0.55);
+}
+.liquid-bg .fixed.inset-0.bg-slate-950\/80 {
+  background-color: rgba(15, 23, 42, 0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* Softer, larger radii on main panels */
+.liquid-bg main .rounded-2xl { border-radius: 1.25rem; }
+
+/* Smooth interactions */
+.liquid-bg button { transition-property: color, background-color, border-color, box-shadow, transform, opacity; }

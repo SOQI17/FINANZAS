@@ -48,7 +48,7 @@ function MainAppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white relative">
+    <div className="liquid-bg min-h-screen text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
       
       {/* Top Header */}
       <Header />
@@ -74,11 +74,12 @@ function MainAppContent() {
       {/* Floating Action Button (FAB) for Instant Movement Entry */}
       <button
         onClick={() => setQuickAddModal({ open: true })}
-        className="fixed bottom-20 right-4 sm:bottom-8 sm:right-8 z-40 p-3.5 sm:px-5 sm:py-3 bg-gradient-to-r from-indigo-600 via-pink-600 to-rose-600 hover:from-indigo-500 hover:to-pink-500 text-white rounded-full sm:rounded-2xl shadow-2xl shadow-pink-950/60 font-extrabold text-xs sm:text-sm flex items-center gap-2 transition active:scale-95 border border-white/20"
+        className="glass-sheen fixed bottom-24 right-4 sm:bottom-8 sm:right-8 z-40 p-4 sm:px-5 sm:py-3 bg-gradient-to-br from-indigo-500/90 via-fuchsia-500/90 to-rose-500/90 backdrop-blur-xl hover:brightness-110 text-white rounded-full shadow-[0_18px_40px_-12px_rgba(190,24,93,0.6)] font-bold text-xs sm:text-sm flex items-center gap-2 transition active:scale-95 border border-white/40"
         title="Registrar Movimiento Rápido"
+        aria-label="Registrar movimiento rápido"
       >
-        <Zap className="w-5 h-5 text-amber-300 animate-pulse shrink-0" />
-        <span className="hidden sm:inline">⚡ Registro Rápido</span>
+        <Plus className="w-5 h-5 shrink-0" />
+        <span className="hidden sm:inline">Nuevo movimiento</span>
       </button>
 
       {quickAddModal.open && (

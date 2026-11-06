@@ -57,6 +57,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Subscribe or fetch data
   useEffect(() => {
+    // Never keep the previous account's data on screen (sign out / switch account)
+    setRawTransactions([]);
+    setRawAccounts([]);
+    setRawBudgets([]);
     if (!user) return;
 
     if (isDemoMode) {
@@ -72,13 +76,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         (txs) => setRawTransactions(txs)
       );
 
-      // Fetch accounts and budgets
+      // Fetch accounts and budgets (ignored if the user changed while loading)
+      let cancelled = false;
       const loadInitialData = async () => {
         const userAccs = await financeService.getAccounts(user.uid);
         let coupleAccs: BankAccount[] = [];
         if (couple) {
           coupleAccs = await financeService.getAccounts(couple.coupleId);
         }
+        if (cancelled) return;
         setRawAccounts([...userAccs, ...coupleAccs]);
 
         const userBuds = await financeService.getBudgets(user.uid);
@@ -86,11 +92,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (couple) {
           coupleBuds = await financeService.getBudgets(couple.coupleId);
         }
+        if (cancelled) return;
         setRawBudgets([...userBuds, ...coupleBuds]);
       };
 
       loadInitialData();
-      return () => unsubscribe();
+      return () => {
+        cancelled = true;
+        unsubscribe();
+      };
     }
   }, [user, partner, couple, isDemoMode]);
 

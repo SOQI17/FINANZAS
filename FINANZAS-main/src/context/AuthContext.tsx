@@ -42,109 +42,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
 
-  // Load partner and couple details if user has coupleId/partnerId
+  // Load partner and couple details. A partner only counts when BOTH profiles point to each
+  // other; one-sided or stale links (e.g. left by older versions) are ignored and cleaned up.
+  // The only way to get a partner is linking with an invite code.
   const refreshRelationship = async (currentUser: UserProfile) => {
-    let pId = currentUser.partnerId;
-    let cId = currentUser.coupleId;
+    const pId = currentUser.partnerId;
+    const cId = currentUser.coupleId;
 
-    // Repair the Alexis Guerra ↔ Karla Vizcaíno link in Cloud Firestore. Only a pair whose
-    // profiles already point to each other is repaired, so a new user with a similar name
-    // is never attached to them.
-    const name = (currentUser.displayName || currentUser.email || '').toLowerCase();
-    const isAlexisOrKarla = name.includes('alexis') || name.includes('karla') || name.includes('karlita');
+    let partnerProfile: UserProfile | null = pId ? await financeService.getUserProfile(pId) : null;
 
-    if (isAlexisOrKarla) {
-      try {
-        const usersSnap = await getDocs(collection(db, 'users'));
-        const profiles: UserProfile[] = [];
-        usersSnap.forEach(d => profiles.push(d.data() as UserProfile));
-        const nameOf = (u: UserProfile) => (u.displayName || u.email || '').toLowerCase();
-
-        let alexisUser: UserProfile | null = null;
-        let karlaUser: UserProfile | null = null;
-        for (const a of profiles.filter(u => nameOf(u).includes('alexis'))) {
-          const k = profiles.find(u =>
-            (nameOf(u).includes('karla') || nameOf(u).includes('karlita')) &&
-            (a.partnerId === u.uid || u.partnerId === a.uid)
-          );
-          if (k) {
-            alexisUser = a;
-            karlaUser = k;
-            break;
-          }
-        }
-
-        const isCurrentInPair = Boolean(alexisUser && karlaUser &&
-          (currentUser.uid === (alexisUser as UserProfile).uid || currentUser.uid === (karlaUser as UserProfile).uid));
-
-        if (alexisUser && karlaUser && isCurrentInPair) {
-          const sharedCoupleId = (alexisUser as UserProfile).coupleId || (karlaUser as UserProfile).coupleId || `couple_alexis_karla`;
-          let partnerProfile: UserProfile | null = null;
-
-          if (currentUser.uid === (alexisUser as UserProfile).uid) {
-            pId = (karlaUser as UserProfile).uid;
-            cId = sharedCoupleId;
-            partnerProfile = karlaUser;
-          } else {
-            pId = (alexisUser as UserProfile).uid;
-            cId = sharedCoupleId;
-            partnerProfile = alexisUser;
-          }
-
-          // Persist linked couple in Firestore
-          const coupleDoc: Couple = {
-            coupleId: sharedCoupleId,
-            user1Id: (alexisUser as UserProfile).uid,
-            user2Id: (karlaUser as UserProfile).uid,
-            user1Name: (alexisUser as UserProfile).displayName || 'Alexis Guerra',
-            user2Name: (karlaUser as UserProfile).displayName || 'Karla Vizcaíno',
-            status: 'active',
-            createdAt: new Date().toISOString(),
-          };
-
-          setPartner(partnerProfile);
-          setCouple(coupleDoc);
-
-          await setDoc(doc(db, 'couples', sharedCoupleId), coupleDoc, { merge: true });
-          await setDoc(doc(db, 'users', (alexisUser as UserProfile).uid), { partnerId: (karlaUser as UserProfile).uid, coupleId: sharedCoupleId }, { merge: true });
-          await setDoc(doc(db, 'users', (karlaUser as UserProfile).uid), { partnerId: (alexisUser as UserProfile).uid, coupleId: sharedCoupleId }, { merge: true });
-        }
-      } catch (e) {
-        console.warn('Relationship repair:', e);
-      }
-    }
-
-    let partnerProfile: UserProfile | null = null;
-    let coupleDoc: Couple | null = null;
-
-    if (pId) {
-      partnerProfile = await financeService.getUserProfile(pId);
-    }
-    if (cId) {
-      coupleDoc = await financeService.getCouple(cId);
-    }
-
-    // A user can never be their own partner
-    if (partnerProfile && partnerProfile.uid === currentUser.uid) {
+    const isMutualLink = Boolean(
+      partnerProfile &&
+      partnerProfile.uid !== currentUser.uid &&
+      partnerProfile.partnerId === currentUser.uid
+    );
+    if (!isMutualLink) {
       partnerProfile = null;
     }
 
     // Users without a partner start alone: no partner and no couple
     if (!partnerProfile) {
+      if (pId || cId) {
+        await clearOwnLink(currentUser);
+      }
       setPartner(null);
       setCouple(null);
       return;
     }
 
-    if (!coupleDoc || coupleDoc.user1Id === coupleDoc.user2Id) {
-      const u1Name = currentUser.displayName || 'Usuario';
-      const u2Name = partnerProfile.displayName || 'Pareja';
+    let coupleDoc: Couple | null = cId ? await financeService.getCouple(cId) : null;
+    const memberIds = [currentUser.uid, partnerProfile.uid];
+    const coupleMatches = Boolean(
+      coupleDoc &&
+      coupleDoc.user1Id !== coupleDoc.user2Id &&
+      memberIds.includes(coupleDoc.user1Id) &&
+      memberIds.includes(coupleDoc.user2Id || '')
+    );
+
+    if (!coupleMatches) {
       coupleDoc = {
-        coupleId: cId || `couple_${currentUser.uid}`,
+        coupleId: cId || partnerProfile.coupleId || `couple_${[...memberIds].sort().join('_')}`,
         user1Id: currentUser.uid,
         user2Id: partnerProfile.uid,
-        user1Name: u1Name,
-        user2Name: u2Name,
+        user1Name: currentUser.displayName || 'Usuario',
+        user2Name: partnerProfile.displayName || 'Pareja',
         status: 'active',
         createdAt: new Date().toISOString()
       };
@@ -152,6 +93,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setPartner(partnerProfile);
     setCouple(coupleDoc);
+  };
+
+  // Remove a stale partner/couple link from the current user's own profile
+  const clearOwnLink = async (currentUser: UserProfile) => {
+    const cleaned: UserProfile = { ...currentUser, partnerId: undefined, coupleId: undefined };
+    setUser(prev => (prev && prev.uid === currentUser.uid ? cleaned : prev));
+    financeService.saveLocalUser(cleaned);
+    if (auth.currentUser) {
+      try {
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          partnerId: deleteField(),
+          coupleId: deleteField(),
+        });
+      } catch (e) {
+        console.warn('Could not clear stale partner link:', e);
+      }
+    }
   };
 
   useEffect(() => {
@@ -163,16 +121,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const fallbackName = fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Usuario');
 
         if (profile) {
-          // Prevent non-Alexis emails from inheriting Alexis Guerra displayName
-          const isRealAlexisEmail = fbUser.email?.toLowerCase().includes('alexis');
-          const cleanDisplayName = (!isRealAlexisEmail && profile.displayName?.toLowerCase().includes('alexis'))
-            ? fallbackName
-            : (profile.displayName || fallbackName);
-
           const sanitizedProfile: UserProfile = {
             ...profile,
             email: fbUser.email || profile.email,
-            displayName: cleanDisplayName,
+            displayName: profile.displayName || fallbackName,
           };
           setUser(sanitizedProfile);
           await refreshRelationship(sanitizedProfile);
@@ -347,8 +299,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'Usuario no encontrado. Tu pareja debe registrarse primero en la app para poder vincularse.' };
     }
 
+    if (partnerProfile.uid === user.uid) {
+      return { success: false, message: 'No puedes vincular tu propio código de invitación.' };
+    }
+
+    // Already linked to someone else? Only if that other person also points back to them;
+    // a one-sided (stale) link doesn't block a new link.
     if (partnerProfile.partnerId && partnerProfile.partnerId !== user.uid) {
-      return { success: false, message: 'Este usuario ya está vinculado a otra pareja.' };
+      const theirPartner = await financeService.getUserProfile(partnerProfile.partnerId);
+      if (theirPartner && theirPartner.partnerId === partnerProfile.uid) {
+        return { success: false, message: 'Este usuario ya está vinculado a otra pareja.' };
+      }
     }
 
     // Link in Firestore and Local Storage

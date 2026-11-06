@@ -32,7 +32,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200/80 p-4 space-y-1.5 text-slate-700 min-h-[calc(100vh-4rem)]">
+      <aside className="glass glass-sheen hidden md:flex flex-col w-60 shrink-0 self-start sticky top-24 mt-6 ml-4 lg:ml-6 rounded-3xl p-3 space-y-1 text-slate-700">
         <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           Navegación Principal
         </div>
@@ -44,10 +44,11 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              aria-current={isActive ? 'page' : undefined}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition-all ${
                 isActive
-                  ? 'bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-xs'
-                  : 'hover:bg-slate-100/80 hover:text-slate-900 text-slate-600'
+                  ? 'bg-white/85 text-indigo-700 shadow-md ring-1 ring-white'
+                  : 'hover:bg-white/45 hover:text-slate-900 text-slate-600'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -55,7 +56,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
                 <span>{item.label}</span>
               </div>
               {item.badge !== undefined && item.badge > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/25 text-amber-800 border border-amber-300/60">
                   {item.badge}
                 </span>
               )}
@@ -65,7 +66,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
       </aside>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-1 py-1.5 flex items-center justify-around overflow-x-auto shadow-lg shadow-slate-900/10">
+      <nav className="glass glass-sheen md:hidden fixed bottom-3 left-3 right-3 z-40 rounded-[1.75rem] px-1.5 py-1.5 flex items-center justify-around overflow-x-auto">
         {navItems.map(item => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -73,9 +74,10 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all min-w-[54px] shrink-0 active:scale-95 ${
+              aria-current={isActive ? 'page' : undefined}
+              className={`relative flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all min-w-[52px] shrink-0 active:scale-95 ${
                 isActive
-                  ? 'text-indigo-600 font-bold bg-indigo-50/80'
+                  ? 'text-indigo-600 font-bold bg-white/85 shadow-md ring-1 ring-white'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >

@@ -20,23 +20,18 @@ export const FixedDepositCalculator: React.FC = () => {
   // Collapsible toggle state (default false as requested)
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
-  const isAlexisOrKarlitaOrDemo = (() => {
-    if (isDemoMode) return true;
-    if (!user) return false;
-    const email = (user.email || '').toLowerCase();
-    const name = (user.displayName || '').toLowerCase();
-    return email.includes('alexis') || email.includes('karlita') || (name.includes('alexis') && !email.includes('@'));
-  })();
+  // Example capital only in the demo; real accounts start at 0
+  const isDemoCapital = isDemoMode;
 
   // User-scoped Persistent States from localStorage (default 0 for new users)
   const [capital, setCapital] = useState<number>(() => {
     try {
       const saved = localStorage.getItem(`suma2_policy_capital_${userId}`);
       if (saved !== null) return parseFloat(saved);
-      // Default to 2000 only for Alexis/Karlita/Demo, 0 for new users
-      return isAlexisOrKarlitaOrDemo ? 2000 : 0;
+      // Default to 2000 only in the demo, 0 for real users
+      return isDemoCapital ? 2000 : 0;
     } catch (e) {
-      return isAlexisOrKarlitaOrDemo ? 2000 : 0;
+      return isDemoCapital ? 2000 : 0;
     }
   });
 
@@ -74,10 +69,10 @@ export const FixedDepositCalculator: React.FC = () => {
       if (savedCap !== null) {
         setCapital(parseFloat(savedCap));
       } else {
-        setCapital(isAlexisOrKarlitaOrDemo ? 2000 : 0);
+        setCapital(isDemoCapital ? 2000 : 0);
       }
     } catch (e) {}
-  }, [userId, isAlexisOrKarlitaOrDemo]);
+  }, [userId, isDemoCapital]);
 
   // Save to localStorage on changes
   useEffect(() => {

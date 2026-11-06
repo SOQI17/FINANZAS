@@ -110,7 +110,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToTab }) => {
       <PendingApprovalBanner />
 
       {/* Shared Debt Banner ("¿Quién le debe a quién?") */}
-      {(activeScope === 'shared' || couple) && (
+      {!partner && activeScope === 'shared' && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-pink-500/15 text-pink-600 flex items-center justify-center shrink-0">
+              <Heart className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900">Aún no tienes pareja vinculada</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Comparte tu código <span className="font-mono font-bold text-slate-700">{user?.inviteCode}</span> o ingresa el de tu pareja para compartir gastos.
+              </p>
+            </div>
+          </div>
+          {onNavigateToTab && (
+            <button
+              onClick={() => onNavigateToTab('couple')}
+              className="px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:brightness-110 text-white font-semibold text-xs sm:text-sm rounded-full shadow-md shrink-0"
+            >
+              Vincular pareja
+            </button>
+          )}
+        </div>
+      )}
+
+      {partner && (
         <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-5 rounded-2xl border border-slate-800 shadow-sm text-white relative overflow-hidden">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 z-10 relative">
             <div className="flex items-center gap-3">

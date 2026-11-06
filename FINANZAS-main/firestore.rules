@@ -22,6 +22,14 @@ service cloud.firestore {
         && userDoc(otherId).data.get('partnerId', null) == me();
     }
 
+    // Whether otherId's profile exists and points back to uid
+    function hasMutualPartner(uid, otherId) {
+      let path = /databases/$(database)/documents/users/$(otherId);
+      return otherId is string
+        && exists(path)
+        && get(path).data.get('partnerId', null) == uid;
+    }
+
     function isCoupleMember(coupleId) {
       let path = /databases/$(database)/documents/couples/$(coupleId);
       return exists(path)
@@ -52,9 +60,11 @@ service cloud.firestore {
         || (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['partnerId', 'coupleId'])
           && (
-            // Linking: the profile has no partner yet (or already has me) and now points to me
+            // Linking: the profile has no partner (or already has me, or only a stale one-sided
+            // link that the other person doesn't return) and now points to me
             (request.resource.data.get('partnerId', null) == me()
-              && resource.data.get('partnerId', null) in [null, me()])
+              && (resource.data.get('partnerId', null) in [null, me()]
+                || !hasMutualPartner(uid, resource.data.get('partnerId', null))))
             // Unlinking: I'm their current partner and the link is removed
             || (resource.data.get('partnerId', null) == me()
               && request.resource.data.get('partnerId', null) == null)

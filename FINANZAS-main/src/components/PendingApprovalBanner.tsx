@@ -17,7 +17,7 @@ export const PendingApprovalBanner: React.FC = () => {
     <div className="space-y-3 mb-6">
       {pendingTxs.map(tx => {
         const isTarget = tx.requestedBy ? tx.requestedBy !== user?.uid : true;
-        const requesterName = !isTarget ? 'Tú' : (partner?.displayName || 'Tu pareja');
+        const requesterName = partner?.displayName || 'Tu pareja';
 
         return (
           <div
@@ -37,7 +37,7 @@ export const PendingApprovalBanner: React.FC = () => {
                 </div>
 
                 <h3 className="font-bold text-base text-white mt-1">
-                  {requesterName} registró el movimiento: "{tx.description}" por ${tx.amount.toFixed(2)}
+                  {isTarget ? `${requesterName} registró` : 'Registraste'} el movimiento "{tx.description}" por ${tx.amount.toFixed(2)}
                 </h3>
 
                 <p className="text-xs text-slate-300 mt-1 leading-relaxed">
