@@ -1,5 +1,5 @@
 // Bump this on releases so installed apps pick up the new service worker and drop old caches
-const CACHE_NAME = 'suma2-v6';
+const CACHE_NAME = 'suma2-v7';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

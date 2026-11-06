@@ -220,3 +220,12 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .liquid-bg .fixed.inset-0.bg-slate-950\/80 > .bg-slate-900 { animation: none; }
 }
+
+/* Profile menu sits just below the sticky header (which respects the notch) */
+.profile-menu {
+  top: calc(max(0.5rem, env(safe-area-inset-top)) + 4rem);
+  background-color: rgba(255, 255, 255, 0.95);
+}
+@media (min-width: 640px) {
+  .profile-menu { top: 5.25rem; }
+}
