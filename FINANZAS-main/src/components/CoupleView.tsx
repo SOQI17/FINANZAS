@@ -12,11 +12,13 @@ import {
   UserPlus,
   ShieldCheck,
   Pencil,
-  UserX
+  UserX,
+  ListChecks
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useFinance } from '../context/FinanceContext';
 import { SettleDebtModal } from './modals/SettleDebtModal';
+import { DebtBreakdownModal } from './modals/DebtBreakdownModal';
 import { PendingApprovalBanner } from './PendingApprovalBanner';
 
 export const CoupleView: React.FC = () => {
@@ -28,6 +30,7 @@ export const CoupleView: React.FC = () => {
   const [linking, setLinking] = useState(false);
   const [linkResult, setLinkResult] = useState<{ success?: boolean; message?: string }>({});
   const [showSettleModal, setShowSettleModal] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   const [isEditingPartnerName, setIsEditingPartnerName] = useState(false);
   const [editingName, setEditingName] = useState('');
@@ -259,12 +262,21 @@ export const CoupleView: React.FC = () => {
           </div>
 
           {!sharedDebt.isBalanced && (
-            <button
-              onClick={() => setShowSettleModal(true)}
-              className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-lg shadow-pink-950/40"
-            >
-              Saldar Deuda
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setShowBreakdown(true)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm rounded-xl border border-white/20 transition flex items-center gap-1.5"
+              >
+                <ListChecks className="w-4 h-4" />
+                Ver desglose
+              </button>
+              <button
+                onClick={() => setShowSettleModal(true)}
+                className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-lg shadow-pink-950/40"
+              >
+                Saldar Deuda
+              </button>
+            </div>
           )}
         </div>
 
@@ -290,6 +302,7 @@ export const CoupleView: React.FC = () => {
       </div>
 
       {showSettleModal && <SettleDebtModal onClose={() => setShowSettleModal(false)} />}
+      {showBreakdown && <DebtBreakdownModal onClose={() => setShowBreakdown(false)} />}
     </div>
   );
 };
