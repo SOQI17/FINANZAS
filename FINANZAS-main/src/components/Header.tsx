@@ -18,14 +18,15 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useFinance } from '../context/FinanceContext';
 import { AuthModal } from './modals/AuthModal';
+import { ResetDataModal } from './modals/ResetDataModal';
 
 export const Header: React.FC = () => {
   const { user, partner, couple, isDemoMode, signOutUser } = useAuth();
-  const { activeScope, setActiveScope, clearAllData } = useFinance();
+  const { activeScope, setActiveScope } = useFinance();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [clearing, setClearing] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   useEffect(() => {
@@ -42,15 +43,12 @@ export const Header: React.FC = () => {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  const handleClearData = async () => {
-    if (window.confirm('¿Seguro que quieres eliminar tus cuentas, movimientos y presupuestos para empezar de 0? Los datos de otras personas no se tocan.')) {
-      setClearing(true);
-      await clearAllData();
-      setClearing(false);
-      setShowProfileMenu(false);
-      alert('Listo: tus datos se reiniciaron a 0.');
-    }
+  // Opens the two-step "start from 0" confirmation
+  const handleClearData = () => {
+    setShowProfileMenu(false);
+    setShowResetModal(true);
   };
+
 
   return (
     <header className="safe-top sticky top-0 z-40 px-2 sm:px-4 sm:pt-3 text-slate-900">
@@ -113,12 +111,11 @@ export const Header: React.FC = () => {
           {/* Start from 0 Button */}
           <button
             onClick={handleClearData}
-            disabled={clearing}
-            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/50 hover:bg-white/80 text-slate-700 text-xs font-semibold border border-white/70 transition"
-            title="Elimina todos los registros y empieza desde cero"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold border border-rose-700/40 shadow-sm shadow-rose-600/30 transition"
+            title="Elimina tus registros y empieza desde cero (pide doble confirmación)"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-            <span>{clearing ? 'Limpiando...' : 'Iniciar de 0'}</span>
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Iniciar de 0</span>
           </button>
 
           {/* User Profile / Auth Button */}
@@ -209,10 +206,10 @@ export const Header: React.FC = () => {
                 <div className="space-y-1">
                   <button
                     onClick={handleClearData}
-                    className="w-full text-left px-2.5 py-2 rounded-xl text-xs text-slate-700 hover:bg-white/70 flex items-center gap-2 font-medium"
+                    className="w-full px-3 py-3 rounded-2xl text-sm text-white bg-rose-600 hover:bg-rose-700 flex items-center justify-center gap-2 font-bold shadow-sm shadow-rose-600/30"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                    <span>Eliminar todo e Iniciar de 0</span>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Eliminar todo e iniciar de 0</span>
                   </button>
 
                   <button
@@ -236,6 +233,7 @@ export const Header: React.FC = () => {
       </div>
 
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      {showResetModal && <ResetDataModal onClose={() => setShowResetModal(false)} />}
     </header>
   );
 };

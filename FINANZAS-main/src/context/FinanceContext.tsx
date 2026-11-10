@@ -107,23 +107,24 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // The two members of the couple (or just the user, if they have no partner)
   const members = useMemo(() => getCoupleMembers(user, partner, couple), [user, partner, couple]);
 
-  // Filter transactions according to active scope (individual vs shared)
-  const filteredTransactions = useMemo(() => {
+  // Transactions the user may see, in any view: their own, or shared ones of their own couple.
+  // A partner's personal transactions and other couples' data are never included.
+  const filteredTransactionsAllScopes = useMemo(() => {
     const partnerId = partner?.uid || '';
     return rawTransactions.filter(t => {
-      // Strictly verify ownership: the user's own transactions, or shared ones of their own couple.
-      // A partner's personal transactions and other couples' data are never shown.
       const isMyTx = t.userId === user?.uid || t.paidBy === user?.uid;
       // (matched by member ids, not coupleId: older versions tagged strangers' transactions with a coupleId)
       const isOurSharedTx = t.scope === 'shared' && Boolean(partnerId) && (
         t.userId === partnerId ||
         t.paidBy === partnerId
       );
+      return isMyTx || isOurSharedTx || isDemoMode;
+    });
+  }, [rawTransactions, user, partner, isDemoMode]);
 
-      if (!isMyTx && !isOurSharedTx && !isDemoMode) {
-        return false;
-      }
-
+  // Filter transactions according to active scope (individual vs shared)
+  const filteredTransactions = useMemo(() => {
+    return filteredTransactionsAllScopes.filter(t => {
       // Incomes fund both individual and couple finances
       if (t.type === 'income') {
         return true;
@@ -142,7 +143,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return t.scope === 'shared';
       }
     });
-  }, [rawTransactions, activeScope, user, partner, couple, isDemoMode]);
+  }, [filteredTransactionsAllScopes, activeScope, partner]);
 
   // Unified accounts list with dynamic balance calculation
   const filteredAccounts = useMemo(() => {
@@ -150,54 +151,56 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return [];
     }
 
+    // Each account has ONE real balance, the same in both views:
+    //   opening balance + money that came in - money that went out of it.
+    // Personal accounts only move with the user's own money (a shared expense paid by the
+    // partner never leaves the user's account). Couple accounts move with both members' money.
+    const uid = user?.uid || '';
+    const currentIsMemberA = members.a.id === uid;
+    const isCoupleAccount = (accountId?: string | null) =>
+      Boolean(accountId && couple && rawAccounts.some(a => a.accountId === accountId && a.ownerId === couple.coupleId));
+    const primaryAccountId = (rawAccounts.find(a => a.ownerId === uid) || rawAccounts[0]).accountId;
+
+    // Positive = money into the account, negative = money out of it. 0 = doesn't touch the user's money.
+    const signedAmount = (t: Transaction): number => {
+      if (isSettlementTx(t)) {
+        // Money out for whoever paid the debt, money in for whoever received it
+        return isMemberAPayer(t, members) === currentIsMemberA ? -t.amount : t.amount;
+      }
+      const sharedPaidByMe = t.scope === 'shared' && (partner
+        ? isMemberAPayer(t, members) === currentIsMemberA
+        : t.paidBy === uid);
+      if (t.type === 'income') {
+        return (t.userId === uid || isCoupleAccount(t.accountId)) ? t.amount : 0;
+      }
+      const paidByMe = t.paidBy === uid || (t.scope === 'individual' && t.userId === uid) || sharedPaidByMe;
+      return (paidByMe || isCoupleAccount(t.accountId)) ? -t.amount : 0;
+    };
+
+    const movementByAccount = new Map<string, number>();
+    if (!isDemoMode) {
+      filteredTransactionsAllScopes.forEach(t => {
+        if (t.approvalStatus === 'pending' || t.approvalStatus === 'rejected') return;
+        const amount = signedAmount(t);
+        if (!amount) return;
+        // Use the transaction's account if it is one of ours, otherwise the user's primary account
+        const accountId = (t.accountId && rawAccounts.some(a => a.accountId === t.accountId))
+          ? t.accountId
+          : primaryAccountId;
+        movementByAccount.set(accountId, (movementByAccount.get(accountId) || 0) + amount);
+      });
+    }
+
     // Filter accounts by scope:
     // In Mis Finanzas (individual): ONLY the active user's own accounts (not the couple's)
     // In En Pareja (shared): the user's accounts and the couple's shared accounts
-    const scopedAccounts = rawAccounts.filter(acc => {
-      if (activeScope === 'individual' && !isDemoMode) {
-        return acc.ownerId === user?.uid;
-      }
-      return true;
-    });
-
-    return scopedAccounts.map((acc, idx) => {
-      // Match transactions belonging to this account, or assign unlinked transactions to primary account (idx === 0)
-      const accTxs = filteredTransactions.filter(t => {
-        if (t.approvalStatus === 'pending' || t.approvalStatus === 'rejected') return false;
-        
-        // If transaction specifies a valid active accountId, match it strictly
-        const isValidAccount = Boolean(t.accountId && rawAccounts.some(a => a.accountId === t.accountId));
-        if (isValidAccount) {
-          return t.accountId === acc.accountId;
-        }
-        
-        // Fallback: assign to primary account (idx === 0) so expenses always deduct from balance
-        return idx === 0;
-      });
-
-      // A debt settlement is money out for the person who paid it and money in for the one who received it
-      const currentIsMemberA = members.a.id === user?.uid;
-      const settlementSum = accTxs
-        .filter(t => isSettlementTx(t))
-        .reduce((s, t) => s + (isMemberAPayer(t, members) === currentIsMemberA ? -t.amount : t.amount), 0);
-
-      const incomeSum = accTxs
-        .filter(t => t.type === 'income' && !isSettlementTx(t))
-        .reduce((s, t) => s + t.amount, 0);
-
-      const expenseSum = accTxs
-        .filter(t => t.type === 'expense')
-        .reduce((s, t) => s + t.amount, 0);
-
-      const openingBalance = acc.balance || 0;
-      const currentBalance = openingBalance + incomeSum - expenseSum + settlementSum;
-
-      return {
+    return rawAccounts
+      .filter(acc => activeScope !== 'individual' || isDemoMode || acc.ownerId === uid)
+      .map(acc => ({
         ...acc,
-        balance: currentBalance,
-      };
-    });
-  }, [rawAccounts, filteredTransactions, activeScope, user, members, isDemoMode]);
+        balance: (acc.balance || 0) + (movementByAccount.get(acc.accountId) || 0),
+      }));
+  }, [rawAccounts, filteredTransactionsAllScopes, activeScope, user, partner, members, couple, isDemoMode]);
 
   // Filter budgets according to active scope. Budgets repeat every month, so keep only the
   // most recent limit per category (older ones from previous months are superseded).
